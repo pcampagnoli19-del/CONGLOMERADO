@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CONGLOMERADO — simulação empresarial em HTML5 puro" />
+  <title>CONGLOMERADO</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+</head>
+<body>
+  <div id="app" aria-live="polite">
+    <p style="padding:2rem;color:#8b9bb0;text-align:center">Carregando CONGLOMERADO…</p>
+  </div>
+
+  <!-- Dados -->
+  <script src="data/cities.js"></script>
+  <script src="data/courses.js"></script>
+  <script src="data/traits.js"></script>
+  <script src="data/names.js"></script>
+  <script src="data/segments.js"></script>
+  <script src="data/legal-natures.js"></script>
+  <script src="data/states.js"></script>
+  <script src="data/banks.js"></script>
+
+  <!-- Núcleo -->
+  <script src="js/utils.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/economy.js"></script>
+  <script src="js/company.js"></script>
+  <script src="js/finance.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/family.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/character-creation.js"></script>
+  <script src="js/company-ui.js"></script>
+  <script src="js/finance-ui.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      try {
+        CGL.Game.init();
+      } catch (err) {
+        document.getElementById('app').innerHTML =
+          '<div style="padding:2rem;color:#f07178;max-width:480px;margin:auto">' +
+          '<h1>Erro ao iniciar</h1><pre style="white-space:pre-wrap">' +
+          String(err && err.stack ? err.stack : err) +
+          '</pre></div>';
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
