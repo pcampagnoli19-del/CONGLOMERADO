@@ -300,6 +300,8 @@
 
           ${CGL.FinanceUI ? CGL.FinanceUI.detailFinanceTabsHtml(e, state) : ''}
 
+          ${CGL.MarketUI ? CGL.MarketUI.companyBlockHtml(e, state) : ''}
+
           <section class="section-block">
             <h2>Quadro societário</h2>
             <table class="data-table">
@@ -318,9 +320,16 @@
           </section>
 
           <section class="section-block">
-            <h2>Administradores</h2>
+            <div class="row-between">
+              <h2>Administradores</h2>
+              ${CGL.FinanceUI ? `<button type="button" class="btn btn-sm btn-secondary" data-goto-fin-tab="${e.id}|remuneracao">Definir pró-labore</button>` : ''}
+            </div>
             <ul>${(e.administradores || []).map((a) => `
-              <li><strong>${CGL.Utils.escapeHtml(a.nome)}</strong> — ${CGL.Utils.escapeHtml(a.cargo)}</li>
+              <li>
+                <strong>${CGL.Utils.escapeHtml(a.nome)}</strong> — ${CGL.Utils.escapeHtml(a.cargo)}
+                ${a.proLaboreMensal != null ? ` · pró-labore ${CGL.Utils.formatBRL(a.proLaboreMensal)}/mês` : ''}
+                ${a.ehContratado ? ' <em class="tag">contratado</em>' : ''}
+              </li>
             `).join('')}</ul>
           </section>
 
@@ -393,6 +402,24 @@
         this.renderEmpresas(main);
       };
       if (CGL.FinanceUI) CGL.FinanceUI.bindDetailFinance(main);
+      main.querySelectorAll('[data-go-market]').forEach((btn) => {
+        btn.onclick = () => {
+          if (CGL.MarketUI) {
+            CGL.MarketUI.view = 'empresa';
+            CGL.MarketUI.selectedId = btn.dataset.goMarket;
+          }
+          CGL.UI.navigate('mercado');
+        };
+      });
+      main.querySelectorAll('[data-go]').forEach((btn) => {
+        if (btn.dataset.go === 'financas' && CGL.FinanceUI) {
+          btn.onclick = () => {
+            CGL.FinanceUI.view = 'empresa';
+            CGL.FinanceUI.selectedId = e.id;
+            CGL.UI.navigate('financas');
+          };
+        }
+      });
       main.querySelector('#btn-branch')?.addEventListener('click', () => this.openBranchModal(e.id));
       main.querySelector('#btn-acq')?.addEventListener('click', () => this.openAcquireModal(e.id));
       main.querySelector('#btn-sell')?.addEventListener('click', () => {
