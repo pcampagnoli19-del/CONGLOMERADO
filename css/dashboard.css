@@ -144,6 +144,32 @@
 
 .pos { color: var(--green); }
 .neg { color: var(--red); }
+.text-danger { color: var(--red); }
+
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline-list li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+}
+
+.finance-screen .kv-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  max-width: 28rem;
+}
+.finance-screen .kv-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 .tag {
   display: inline-block;
@@ -302,6 +328,154 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Fase 5 — Mercado */
+.market-screen .timeline .pos { color: var(--green); }
+.market-screen .timeline .neg { color: var(--red); }
+
+/* Fase 7 — RH */
+.hr-screen .row-talent td:first-child { color: var(--gold); }
+.hr-screen .row-warn { background: rgba(240, 113, 120, 0.06); }
+.btn-danger {
+  background: rgba(240, 113, 120, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.btn-danger:hover { background: rgba(240, 113, 120, 0.28); }
+
+/* Fase 8 — Marketing / Marca */
+.mkt-screen .mkt-meter { margin-bottom: 0.55rem; }
+.mkt-screen .mkt-bar {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.2rem;
+}
+.mkt-screen .mkt-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+  border-radius: 3px;
+}
+.mkt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.mkt-chip {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.mkt-tab-body { margin-top: 1rem; }
+.text-danger { color: var(--red); }
+
+/* Fase 9 — P&D / Inovação */
+.rd-screen .rd-tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.rd-tech {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+.rd-tech.done { border-color: var(--green); background: rgba(61, 214, 140, 0.08); }
+.rd-tech.open { border-color: var(--gold); }
+.rd-tech.locked { opacity: 0.55; }
+.rd-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  width: 80px;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+.rd-screen .meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+
+/* Fase 10 — Logística */
+.logistics-screen .log-kpi-grid {
+  margin-bottom: 1rem;
+}
+.logistics-screen .log-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+.logistics-screen .log-stage {
+  flex: 1 1 100px;
+  min-width: 100px;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  text-align: center;
+}
+.logistics-screen .log-stage.bottleneck {
+  border-color: var(--red);
+  background: rgba(240, 113, 120, 0.08);
+}
+.logistics-screen .log-stage-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+.logistics-screen .log-chain-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 0 0.15rem;
+}
+.logistics-screen .log-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.logistics-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0.25rem 0;
+}
+.logistics-screen .meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+.logistics-screen .row-active td {
+  background: rgba(61, 214, 140, 0.06);
 }
 
 @media (max-width: 640px) {
