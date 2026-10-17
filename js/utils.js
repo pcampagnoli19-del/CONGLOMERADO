@@ -60,6 +60,15 @@
       })}%`;
     },
 
+    /** Número inteiro/decimal pt-BR (índices, quantidades) */
+    formatNumber(value, decimals = 0) {
+      const n = Number(value) || 0;
+      return n.toLocaleString('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    },
+
     /** Números grandes: mil, mi, bi, tri */
     formatLargeNumber(value, opts = {}) {
       const n = Number(value) || 0;

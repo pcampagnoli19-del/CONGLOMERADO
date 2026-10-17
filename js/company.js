@@ -191,7 +191,11 @@
         rd: {},
         logistics: {},
         international: {},
-        ipo: { elegivel: !!natureza.permiteIPO, listada: false }
+        ipo: {
+          elegivel: !!natureza.permiteIPO,
+          listada: false,
+          status: 'privada'
+        }
       };
 
       this.addHistory(empresa, state, {
@@ -214,9 +218,15 @@
 
       state.statistics.companiesFounded = (state.statistics.companiesFounded || 0) + 1;
 
-      // Fase 3: contas PJ + espelho PF
+      // Fase 3–5: contas PJ + mercado de capitais
       if (CGL.Finance?.onCompanyCreated) {
         try { CGL.Finance.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Market?.ensureCompanyMarket) {
+        try { CGL.Market.ensureCompanyMarket(empresa, state); } catch (err) { /* ok */ }
+      }
+      if (CGL.Hr?.onCompanyCreated) {
+        try { CGL.Hr.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
       }
 
       CGL.Player.addHistory(state, {
@@ -336,20 +346,33 @@
     },
 
     _normalizeAdmins(input, socios, player) {
-      if (Array.isArray(input) && input.length) {
-        return input.map((a) => ({
-          id: a.id || CGL.Utils.uuid(),
-          nome: a.nome,
-          cargo: a.cargo || 'Administrador',
-          socioId: a.socioId || null
-        }));
-      }
       const jog = socios.find((s) => s.tipo === 'jogador');
+      const nomeJog = `${player.nome} ${player.sobrenome}`;
+      if (Array.isArray(input) && input.length) {
+        return input.map((a) => {
+          const linkedJog = a.socioId === jog?.id ||
+            (a.nome && a.nome.toLowerCase() === nomeJog.toLowerCase());
+          return {
+            id: a.id || CGL.Utils.uuid(),
+            nome: a.nome,
+            cargo: a.cargo || 'Administrador',
+            socioId: a.socioId || (linkedJog ? jog?.id : null) || null,
+            playerId: linkedJog ? player.id : (a.playerId || null),
+            proLaboreMensal: a.proLaboreMensal != null ? a.proLaboreMensal : null,
+            ehContratado: a.ehContratado != null ? !!a.ehContratado : !linkedJog,
+            satisfacao: a.satisfacao != null ? a.satisfacao : (linkedJog ? 80 : 70)
+          };
+        });
+      }
       return [{
         id: CGL.Utils.uuid(),
-        nome: `${player.nome} ${player.sobrenome}`,
+        nome: nomeJog,
         cargo: 'Administrador',
-        socioId: jog?.id || null
+        socioId: jog?.id || null,
+        playerId: player.id,
+        proLaboreMensal: null,
+        ehContratado: false,
+        satisfacao: 80
       }];
     },
 
@@ -675,7 +698,12 @@
 
       const valuation = this.calcValuation(empresa, state);
       const preco = opts.preco ?? Math.round(valuation * (stake / 100) * 0.95);
-      state.player.dinheiro = (state.player.dinheiro || 0) + preco;
+      // Canal formal PF: venda de participação (não mistura caixa PJ)
+      if (CGL.Finance?.creditEquitySale) {
+        CGL.Finance.creditEquitySale(state, preco, empresa.nomeFantasia);
+      } else {
+        state.player.dinheiro = (state.player.dinheiro || 0) + preco;
+      }
 
       if (stake >= 99 || opts.venderTudo) {
         // Vende a terceiros (vira concorrente ou fecha no mercado)
@@ -769,7 +797,28 @@
       const residual = Math.max(0, (empresa.caixa || 0) - (empresa.endividamento || 0) * 0.5);
       const stake = this.playerStake(empresa, state.player.id) / 100;
       const payout = Math.round(residual * stake);
-      state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+      // Liquidação = restituição residual (canal formal PF; não mistura gasto livre)
+      if (payout > 0) {
+        const debitavel = Math.min(payout, empresa.caixa || 0);
+        try {
+          if (debitavel > 0 && empresa.finance && CGL.Finance?.debitEmpresa) {
+            CGL.Finance.debitEmpresa(state, empresaId, debitavel, {
+              categoria: 'restituicao_capital',
+              descricao: 'Liquidação — restituição ao sócio'
+            });
+          }
+          if (CGL.Finance?.creditPersonal) {
+            CGL.Finance.creditPersonal(state, payout, {
+              categoria: 'restituicao_capital_recebida',
+              descricao: `Liquidação — ${empresa.nomeFantasia}`
+            });
+          } else {
+            state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+          }
+        } catch (e) {
+          state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+        }
+      }
 
       empresa.ativa = false;
       empresa.fechada = true;
@@ -859,12 +908,15 @@
         rd: {},
         logistics: {},
         international: {},
-        ipo: { elegivel: false, listada: false },
+        ipo: { elegivel: false, listada: false, status: 'privada' },
         ai: {
           agressividade: CGL.Utils.randomFloat(0.3, 0.9),
           foco: CGL.Utils.pick(['crescimento', 'preco', 'qualidade', 'expansao'])
         }
       };
+      if (CGL.Market?.ensureCompanyMarket) {
+        try { CGL.Market.ensureCompanyMarket(empresa, state); } catch (err) { /* ok */ }
+      }
 
       this.addHistory(empresa, state, {
         tipo: 'fundacao',
