@@ -39,7 +39,11 @@
      */
     weeklyTick(state) {
       const rolls = [];
-      if (Math.random() < 0.12) {
+      const personalMult = CGL.Difficulty?.eventChanceMult
+        ? CGL.Difficulty.eventChanceMult(state, 'pessoal')
+        : 1;
+      if (personalMult <= 0) return rolls;
+      if (Math.random() < 0.12 * personalMult) {
         const personal = [
           {
             title: 'Fim de semana produtivo',
