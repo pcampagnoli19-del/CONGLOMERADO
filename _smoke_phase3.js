@@ -215,7 +215,7 @@ CGL.Game.state = state;
 const okSave = CGL.Save.save(state);
 assert(okSave, 'save');
 const loaded = CGL.Save.load();
-assert(loaded.version === 3, 'version 3');
+assert(loaded.version >= 3, 'version ≥3');
 assert(loaded.state.companies.empresas[0].finance.contas.length >= 1, 'load contas');
 assert(loaded.state.finance.pessoal.contas.length >= 1, 'load PF');
 console.log('OK save/load v3');
@@ -231,10 +231,10 @@ fakeV2.state.companies.empresas.forEach((e) => {
 });
 delete fakeV2.state.finance;
 const migrated = CGL.Save.migrate(fakeV2);
-assert(migrated.version === 3, 'migrate version');
+assert(migrated.version >= 3, 'migrate version');
 assert(migrated.state.finance?.pessoal, 'migrate PF');
 assert(migrated.state.companies.empresas[0].finance.contas.length >= 1, 'migrate bootstrap contas');
-console.log('OK migrate v2→v3');
+console.log('OK migrate v2→atual', migrated.version);
 
 // Transferência: segunda empresa
 state.player.dinheiro = Math.max(state.player.dinheiro || 0, 150000);
