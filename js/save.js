@@ -7,7 +7,7 @@
 
   const SAVE_KEY = 'conglomerado_save_v1';
   const META_KEY = 'conglomerado_meta';
-  const CURRENT_VERSION = 3;
+  const CURRENT_VERSION = 4;
 
   /** Migrações por versão (vN → vN+1) */
   const MIGRATIONS = {
@@ -69,6 +69,28 @@
         });
       }
       data.version = 3;
+      return data;
+    },
+    3: (data) => {
+      // Fase 4: remuneração sócios/admins, mútuos, reembolso, restituição
+      if (data.state && global.CGL?.Finance?.migrateAll) {
+        CGL.Finance.migrateAll(data.state);
+      }
+      if (data.state) {
+        if (data.state.finance?.pessoal) data.state.finance.pessoal.version = 4;
+        (data.state.companies?.empresas || []).forEach((e) => {
+          if (!e.finance) return;
+          e.finance.version = 4;
+          if (!Array.isArray(e.finance.emprestimosSocio)) e.finance.emprestimosSocio = [];
+          if (!Array.isArray(e.finance.reembolsos)) e.finance.reembolsos = [];
+          (e.administradores || []).forEach((a) => {
+            if (a.proLaboreMensal == null) a.proLaboreMensal = null;
+            if (a.satisfacao == null) a.satisfacao = a.ehContratado ? 70 : 80;
+            if (a.ehContratado == null) a.ehContratado = false;
+          });
+        });
+      }
+      data.version = 4;
       return data;
     }
   };
