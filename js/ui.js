@@ -8,11 +8,12 @@
     { id: 'dashboard', label: 'Dashboard', icon: '▣' },
     { id: 'empresas', label: 'Empresas', icon: '🏢' },
     { id: 'financas', label: 'Finanças', icon: '💰' },
+    { id: 'mercado', label: 'Mercado', icon: '📈' },
+    { id: 'investimentos', label: 'Investimentos', icon: '📉' },
     { id: 'vida', label: 'Vida Pessoal', icon: '👤' },
     { id: 'economia', label: 'Economia', icon: '📊', stub: true },
     { id: 'funcionarios', label: 'Funcionários', icon: '👥', stub: true },
     { id: 'diretoria', label: 'Diretoria', icon: '⚖', stub: true },
-    { id: 'mercado', label: 'Mercado', icon: '📈', stub: true },
     { id: 'patrimonio', label: 'Patrimônio', icon: '⚜', stub: true },
     { id: 'familia', label: 'Família', icon: '⌂' },
     { id: 'historico', label: 'Histórico', icon: '📜' },
@@ -219,6 +220,13 @@
         // Mantém selectedId se veio da ficha da empresa
         if (!CGL.FinanceUI.selectedId) CGL.FinanceUI.view = 'hub';
       }
+      if (screenId === 'mercado' && this.currentScreen !== 'mercado' && CGL.MarketUI) {
+        CGL.MarketUI.view = 'mercado';
+        CGL.MarketUI.selectedId = null;
+      }
+      if (screenId === 'investimentos' && CGL.MarketUI) {
+        CGL.MarketUI.view = 'investimentos';
+      }
       this.currentScreen = screenId;
       document.querySelectorAll('.nav-item').forEach((el) => {
         el.classList.toggle('active', el.dataset.screen === screenId);
@@ -236,6 +244,12 @@
         else this.renderStub(main, SCREENS.find((s) => s.id === id));
       } else if (id === 'financas') {
         if (CGL.FinanceUI) CGL.FinanceUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'mercado') {
+        if (CGL.MarketUI) CGL.MarketUI.renderMercado(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'investimentos') {
+        if (CGL.MarketUI) CGL.MarketUI.renderInvestimentos(main);
         else this.renderStub(main, SCREENS.find((s) => s.id === id));
       } else if (id === 'vida') this.renderVida(main);
       else if (id === 'familia') this.renderFamilia(main);
@@ -449,6 +463,9 @@
             ${CGL.FinanceUI
               ? CGL.FinanceUI.dashboardCardsHtml(s)
               : this.card('Finanças', '<p class="muted">Módulo financeiro indisponível.</p>')}
+            ${CGL.MarketUI
+              ? CGL.MarketUI.dashboardCardsHtml(s)
+              : this.card('Mercado', '<p class="muted">Mercado de capitais indisponível.</p>')}
             ${this.card('Família', `
               <p>${(p.familia || []).filter((m) => m.vivo).length} familiares ativos</p>
               <button type="button" class="btn btn-sm btn-secondary" data-go="familia">Ver família</button>

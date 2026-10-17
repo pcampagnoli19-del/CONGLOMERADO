@@ -44,8 +44,10 @@
           companiesFounded: 0,
           peakNetWorth: 0
         },
-        // Slots futuros (Fase 3+)
-        market: {},
+        // Mercado de capitais (Fase 5) — bootstrap em Market.ensureMarket
+        market: CGL.Market?.createEmptyMarket ? CGL.Market.createEmptyMarket() : {},
+        // Dívida / captação (Fase 6)
+        debt: CGL.Debt?.createEmptyDebtState ? CGL.Debt.createEmptyDebtState() : {},
         finance: {},
         hr: {},
         rd: {},
@@ -104,6 +106,12 @@
       if (CGL.Finance?.migrateAll) {
         try { CGL.Finance.migrateAll(this.state); } catch (e) { /* ignore */ }
       }
+      if (CGL.Market?.migrateAll) {
+        try { CGL.Market.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Debt?.migrateAll) {
+        try { CGL.Debt.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
       try { CGL.Company.syncPlayerEquity(this.state); } catch (e) { /* ignore */ }
       this.applySettingsToDOM(this.state.settings);
       this.phase = 'playing';
@@ -120,6 +128,12 @@
       this.state.statistics.peakNetWorth = this.state.player.patrimonio;
       if (CGL.Finance?.ensurePersonal) {
         try { CGL.Finance.ensurePersonal(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Market?.ensureMarket) {
+        try { CGL.Market.ensureMarket(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Debt?.ensureDebt) {
+        try { CGL.Debt.ensureDebt(this.state); } catch (e) { /* ignore */ }
       }
       this.phase = 'playing';
       this.save();
@@ -174,8 +188,14 @@
         // 5. Empresas, holdings, concorrência (Fase 2)
         CGL.Company.weeklyTick(s);
 
-        // 5b. Finanças empresariais / pessoais (Fase 3)
+        // 5b. Finanças empresariais / pessoais (Fase 3–4)
         if (CGL.Finance?.weeklyTick) CGL.Finance.weeklyTick(s);
+
+        // 5c. Mercado de capitais (Fase 5)
+        if (CGL.Market?.weeklyTick) CGL.Market.weeklyTick(s);
+
+        // 5d. Dívida / captação (Fase 6) — após Finance/Market
+        if (CGL.Debt?.weeklyTick) CGL.Debt.weeklyTick(s);
 
         // 6. Eventos aleatórios
         CGL.Events.weeklyTick(s);
