@@ -63,12 +63,12 @@
       capitalMin: 500000,
       isHolding: false,
       permiteIPO: true,
-      vantagem: 'Acesso a mercado de capitais (stub Fase 5).',
+      vantagem: 'Acesso a mercado de capitais e IPO (Fase 5).',
       limitacao: 'Regulação pesada; capital e divulgação exigentes.',
       impostoMult: 1.1,
       flexibilidade: 0.55,
       prestigio: 1.0,
-      descricao: 'Base para IPO futuro — regras simplificadas na Fase 2.'
+      descricao: 'Capital aberto — listagem e pressão de acionistas (Fase 5).'
     },
     {
       id: 'cooperativa',

@@ -304,6 +304,23 @@
   align-items: center;
 }
 
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Fase 5 — Mercado */
+.market-screen .timeline .pos { color: var(--green); }
+.market-screen .timeline .neg { color: var(--red); }
+
 @media (max-width: 640px) {
   .nature-grid { grid-template-columns: 1fr; }
   .detail-title { align-items: flex-start; }
