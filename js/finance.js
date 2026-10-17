@@ -1,20 +1,28 @@
 /**
- * CONGLOMERADO — Finanças empresariais e pessoais (Fase 3)
+ * CONGLOMERADO — Finanças empresariais e pessoais (Fases 3–4)
  * Caixa por empresa (sem compartilhamento automático entre holdings).
- * Contas PJ/PF, ledger, DRE, balanço, crédito, aplicações, dividendos, falência em estágios.
+ * Contas PJ/PF, ledger, DRE, balanço, crédito, aplicações, dividendos, falência.
+ * Fase 4: pró-labore, aportes, empréstimos sócio–empresa, reembolso, restituição de capital.
+ * Retiradas PF só pelos mecanismos formais — nunca gasto livre do caixa PJ.
  */
 (function (global) {
   'use strict';
 
   const LEDGER_CAP = 800;
   const DRE_CAP = 260;
+  /** Buffer mínimo de caixa PJ após retiradas formais */
+  const CAIXA_BUFFER = 1500;
+  /** Limite de mútuo empresa→sócio: fração do caixa disponível */
+  const MUTUO_PJ_FRAC = 0.35;
+  /** Limite de mútuo sócio→empresa: múltiplo do capital social do sócio */
+  const MUTUO_PF_CAP_MULT = 2;
 
   const Finance = {
     /* ========== Bootstrap / ensure ========== */
 
     createEmptyCompanyFinance() {
       return {
-        version: 3,
+        version: 4,
         contas: [],
         ledger: [],
         dreHistorico: [],
@@ -24,6 +32,8 @@
         debentures: [],
         aplicacoes: [],
         garantias: [],
+        emprestimosSocio: [],
+        reembolsos: [],
         inadimplencia: {
           clientesAtrasados: 0,
           fornecedorJuros: 0,
@@ -48,7 +58,7 @@
 
     createEmptyPersonalFinance() {
       return {
-        version: 3,
+        version: 4,
         contas: [],
         ledger: [],
         aplicacoes: []
@@ -82,7 +92,13 @@
           ...(prev.falencia || {})
         };
         empresa.finance.contas = Array.isArray(prev.contas) ? prev.contas : [];
+        empresa.finance.emprestimosSocio = Array.isArray(prev.emprestimosSocio)
+          ? prev.emprestimosSocio
+          : [];
+        empresa.finance.reembolsos = Array.isArray(prev.reembolsos) ? prev.reembolsos : [];
+        empresa.finance.version = 4;
       }
+      this._ensureAdminsProLabore(empresa);
       if (!empresa.finance.contas.length) {
         this.bootstrapCompanyAccounts(empresa, state);
       } else if (!empresa.finance.balanco) {
@@ -92,6 +108,39 @@
         this.recalcIndicators(empresa, state);
       }
       return empresa.finance;
+    },
+
+    /** Garante campos de pró-labore em cada administrador */
+    _ensureAdminsProLabore(empresa) {
+      if (!empresa || !Array.isArray(empresa.administradores)) return;
+      const ref = this.referenciaProLabore(empresa);
+      empresa.administradores.forEach((a) => {
+        if (a.proLaboreMensal == null) {
+          // Jogador-admin: valor inicial modesto; contratados: referência de mercado
+          a.proLaboreMensal = a.ehContratado ? Math.round(ref * 0.85) : Math.round(ref * 0.6);
+        }
+        if (a.satisfacao == null) a.satisfacao = a.ehContratado ? 70 : 80;
+        if (a.ehContratado == null) {
+          a.ehContratado = !(a.socioId && (empresa.socios || []).some(
+            (s) => s.id === a.socioId && s.tipo === 'jogador'
+          ));
+        }
+      });
+    },
+
+    /** Referência mensal de pró-labore (~porte / receita) */
+    referenciaProLabore(empresa) {
+      const receitaMes = Math.max(0, (empresa.receita || 0) * 4);
+      const porPorte = {
+        micro: 3500,
+        pequena: 8000,
+        media: 18000,
+        grande: 45000,
+        corporacao: 90000,
+        conglomerado: 150000
+      };
+      const base = porPorte[empresa.porte] || 3500;
+      return Math.max(base, Math.round(receitaMes * 0.04));
     },
 
     ensurePersonal(state) {
@@ -290,7 +339,18 @@
       const deb = (fin?.debentures || [])
         .filter((e) => e.status === 'ativa')
         .reduce((s, e) => s + (e.saldo || 0), 0);
-      return loans + fins + deb;
+      // Mútuos em que a empresa deve ao sócio
+      const mutuoPf = (fin?.emprestimosSocio || [])
+        .filter((e) => e.status === 'ativo' && e.direcao === 'socio_para_empresa')
+        .reduce((s, e) => s + (e.saldo || 0), 0);
+      return loans + fins + deb + mutuoPf;
+    },
+
+    /** Soma mútuos empresa→sócio (ativo da PJ) */
+    totalMutuoAtivo(fin) {
+      return (fin?.emprestimosSocio || [])
+        .filter((e) => e.status === 'ativo' && e.direcao === 'empresa_para_socio')
+        .reduce((s, e) => s + (e.saldo || 0), 0);
     },
 
     syncEmpresaCaixa(empresa) {
@@ -672,6 +732,7 @@
         }
       });
 
+      const mutuoAtivo = this.totalMutuoAtivo(fin);
       const ativos = {
         caixa: Math.round(caixa),
         bancos: Math.round(bancosBloq),
@@ -681,6 +742,7 @@
         maquinas: Math.round(af.maquinas || 0),
         veiculos: Math.round(af.veiculos || 0),
         contasReceber: Math.round(fin.contasReceber || 0),
+        emprestimosSocio: Math.round(mutuoAtivo),
         participacoes: Math.round(participacoes)
       };
       const totalAtivos = Object.values(ativos).reduce((a, b) => a + b, 0);
@@ -694,11 +756,15 @@
       const deb = (fin.debentures || [])
         .filter((e) => e.status === 'ativa')
         .reduce((s, e) => s + (e.saldo || 0), 0);
+      const mutuoPassivo = (fin.emprestimosSocio || [])
+        .filter((e) => e.status === 'ativo' && e.direcao === 'socio_para_empresa')
+        .reduce((s, e) => s + (e.saldo || 0), 0);
 
       const passivos = {
         emprestimos: Math.round(emp),
         financiamentos: Math.round(fins),
         debentures: Math.round(deb),
+        emprestimosSocio: Math.round(mutuoPassivo),
         contasPagar: Math.round(fin.contasPagar || 0),
         obrigacoes: Math.round((fin.contasPagar || 0) * 0.2)
       };
@@ -1106,6 +1172,530 @@
         this.rebuildBalanceSheet(empresa, state);
       }
       return valor;
+    },
+
+    /* ========== Fase 4 — Remuneração sócios / admins (PF ≠ PJ) ========== */
+
+    /**
+     * Mecanismos permitidos de retirada PJ → PF.
+     * Qualquer outro uso de caixa empresarial para gasto pessoal é proibido.
+     */
+    canaisRetiradaPermitidos() {
+      return [
+        'pro_labore',
+        'dividendos',
+        'reembolso',
+        'venda_participacao',
+        'emprestimo_socio',
+        'restituicao_capital'
+      ];
+    },
+
+    _requireShareholder(empresa, state, minPct = 0.01) {
+      const pct = CGL.Company.playerStake(empresa, state.player?.id) || 0;
+      if (pct < minPct) throw new Error('É preciso ser sócio da empresa.');
+      return pct;
+    },
+
+    _requireAdminOrControl(empresa, state) {
+      const pct = CGL.Company.playerStake(empresa, state.player?.id) || 0;
+      const isAdmin = (empresa.administradores || []).some(
+        (a) => a.socioId && (empresa.socios || []).some(
+          (s) => s.id === a.socioId && (s.tipo === 'jogador' || s.playerId === state.player?.id)
+        )
+      ) || (empresa.administradores || []).some(
+        (a) => a.nome && state.player &&
+          a.nome.toLowerCase().includes((state.player.nome || '').toLowerCase())
+      );
+      if (pct < 50 && !isAdmin) {
+        throw new Error('Somente administradores ou sócios controladores.');
+      }
+      return { pct, isAdmin };
+    },
+
+    _caixaLivre(empresa) {
+      return Math.max(0, (empresa.caixa || 0) - CAIXA_BUFFER);
+    },
+
+    /* ----- Pró-labore ----- */
+
+    setProLabore(state, empresaId, adminId, valorMensal) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      this.ensureCompanyFinance(empresa, state);
+      this._requireAdminOrControl(empresa, state);
+      const admin = (empresa.administradores || []).find((a) => a.id === adminId);
+      if (!admin) throw new Error('Administrador não encontrado.');
+      const v = Math.round(Number(valorMensal) || 0);
+      if (v < 0) throw new Error('Valor inválido.');
+      if (v > this.referenciaProLabore(empresa) * 8) {
+        throw new Error('Pró-labore acima do teto razoável para o porte.');
+      }
+      admin.proLaboreMensal = v;
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Pró-labore definido',
+        descricao: `${admin.nome}: ${CGL.Utils.formatBRL(v)}/mês.`
+      });
+      return admin;
+    },
+
+    /** Custo mensal total de pró-labore (todos os admins) */
+    totalProLaboreMensal(empresa) {
+      return (empresa.administradores || []).reduce(
+        (s, a) => s + Math.max(0, a.proLaboreMensal || 0),
+        0
+      );
+    },
+
+    /**
+     * Paga pró-labore mensal (chamado a cada 4 semanas no tick).
+     * Reduz caixa PJ; credita PF do jogador se for o beneficiário; senão é custo puro.
+     */
+    payProLabores(state, empresaId) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa || empresa.concorrente) return { pagos: [], total: 0 };
+      const fin = this.ensureCompanyFinance(empresa, state);
+      this._ensureAdminsProLabore(empresa);
+      const ref = this.referenciaProLabore(empresa);
+      const pagos = [];
+      let total = 0;
+
+      (empresa.administradores || []).forEach((admin) => {
+        const valor = Math.round(admin.proLaboreMensal || 0);
+        if (valor <= 0) {
+          if (admin.ehContratado) {
+            admin.satisfacao = CGL.Utils.clamp((admin.satisfacao || 70) - 6, 0, 100);
+          }
+          return;
+        }
+        try {
+          this.debitEmpresa(state, empresaId, valor, {
+            categoria: 'pro_labore',
+            descricao: `Pró-labore — ${admin.nome}`
+          });
+          total += valor;
+          const isPlayer = this._adminIsPlayer(admin, empresa, state);
+          if (isPlayer) {
+            this.creditPersonal(state, valor, {
+              categoria: 'pro_labore_recebido',
+              descricao: `Pró-labore de ${empresa.nomeFantasia}`
+            });
+            CGL.Player.addHistory(state, {
+              tipo: 'financeiro',
+              titulo: 'Pró-labore',
+              descricao: `Recebeu ${CGL.Utils.formatBRL(valor)} de ${empresa.nomeFantasia}.`
+            });
+          }
+          // Tradeoff: alto custo vs insatisfação
+          const ratio = valor / Math.max(1, ref);
+          if (admin.ehContratado) {
+            if (ratio < 0.5) {
+              admin.satisfacao = CGL.Utils.clamp((admin.satisfacao || 70) - 4, 0, 100);
+            } else if (ratio >= 0.9) {
+              admin.satisfacao = CGL.Utils.clamp((admin.satisfacao || 70) + 2, 0, 100);
+            }
+          }
+          // Custo alto pressiona eficiência levemente
+          if (ratio > 2.5) {
+            empresa.eficiencia = CGL.Utils.clamp((empresa.eficiencia || 50) - 0.3, 5, 100);
+          }
+          pagos.push({ adminId: admin.id, nome: admin.nome, valor, isPlayer });
+        } catch (e) {
+          if (admin.ehContratado) {
+            admin.satisfacao = CGL.Utils.clamp((admin.satisfacao || 70) - 8, 0, 100);
+          }
+        }
+      });
+
+      if (total > 0) {
+        // Espelha na DRE da semana
+        if (fin.dreHistorico[0]) {
+          fin.dreHistorico[0].despesasAdministrativas =
+            (fin.dreHistorico[0].despesasAdministrativas || 0) + total;
+          fin.dreHistorico[0].lucroLiquido =
+            (fin.dreHistorico[0].lucroLiquido || 0) - total;
+        }
+        CGL.Company.addHistory(empresa, state, {
+          tipo: 'financeiro',
+          titulo: 'Folha de pró-labore',
+          descricao: `Total mensal ${CGL.Utils.formatBRL(total)}.`
+        });
+      }
+      this.rebuildBalanceSheet(empresa, state);
+      return { pagos, total };
+    },
+
+    _adminIsPlayer(admin, empresa, state) {
+      if (!state.player) return false;
+      if (admin.playerId && admin.playerId === state.player.id) return true;
+      const socio = (empresa.socios || []).find((s) => s.id === admin.socioId);
+      if (socio && (socio.tipo === 'jogador' || socio.playerId === state.player.id)) return true;
+      const nome = `${state.player.nome || ''} ${state.player.sobrenome || ''}`.trim().toLowerCase();
+      return !!(admin.nome && nome && admin.nome.toLowerCase() === nome);
+    },
+
+    /* ----- Aporte de capital (PF → PJ) ----- */
+
+    contributeCapital(state, empresaId, valor) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      this.ensureCompanyFinance(empresa, state);
+      const pct = this._requireShareholder(empresa, state);
+      const v = Math.round(Number(valor) || 0);
+      if (v < 500) throw new Error('Aporte mínimo: R$ 500.');
+      if ((state.player.dinheiro || 0) < v) throw new Error('Dinheiro pessoal insuficiente.');
+
+      this.debitPersonal(state, v, {
+        categoria: 'aporte_capital',
+        descricao: `Aporte de capital em ${empresa.nomeFantasia}`
+      });
+      this.creditEmpresa(state, empresaId, v, {
+        categoria: 'aporte_capital',
+        descricao: `Aporte do sócio (${pct.toFixed(1)}%)`
+      });
+      // Aumenta capital social proporcional à participação do jogador (integralização)
+      empresa.capitalSocial = Math.round((empresa.capitalSocial || 0) + v);
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Aporte de capital',
+        descricao: `Sócio integralizou ${CGL.Utils.formatBRL(v)}. Capital social: ${CGL.Utils.formatBRL(empresa.capitalSocial)}.`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Aporte empresarial',
+        descricao: `Investiu ${CGL.Utils.formatBRL(v)} em ${empresa.nomeFantasia}.`
+      });
+      this.rebuildBalanceSheet(empresa, state);
+      this.recalcIndicators(empresa, state);
+      try { CGL.Company.syncPlayerEquity(state); } catch (e) { /* ok */ }
+      return { valor: v, capitalSocial: empresa.capitalSocial };
+    },
+
+    /* ----- Reembolso de despesas ----- */
+
+    reimburseExpense(state, empresaId, valor, descricao) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      const fin = this.ensureCompanyFinance(empresa, state);
+      this._requireShareholder(empresa, state);
+      const v = Math.round(Number(valor) || 0);
+      if (v < 50) throw new Error('Reembolso mínimo: R$ 50.');
+      const teto = Math.max(2000, Math.round(((empresa.receita || 0) * 4) * 0.08));
+      if (v > teto) throw new Error(`Reembolso acima do teto (${CGL.Utils.formatBRL(teto)}).`);
+      if (v > this._caixaLivre(empresa)) throw new Error('Caixa empresarial insuficiente (respeite o buffer).');
+
+      this.debitEmpresa(state, empresaId, v, {
+        categoria: 'reembolso',
+        descricao: descricao || 'Reembolso de despesas do sócio'
+      });
+      this.creditPersonal(state, v, {
+        categoria: 'reembolso_recebido',
+        descricao: `Reembolso — ${empresa.nomeFantasia}`
+      });
+      fin.reembolsos = fin.reembolsos || [];
+      fin.reembolsos.unshift({
+        id: CGL.Utils.uuid(),
+        semana: state.world?.semanaAtual || 0,
+        valor: v,
+        descricao: descricao || 'Despesas operacionais'
+      });
+      if (fin.reembolsos.length > 80) fin.reembolsos.length = 80;
+
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Reembolso de despesas',
+        descricao: `${CGL.Utils.formatBRL(v)} — ${descricao || 'despesas'}.`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Reembolso',
+        descricao: `Recebeu ${CGL.Utils.formatBRL(v)} de ${empresa.nomeFantasia}.`
+      });
+      this.rebuildBalanceSheet(empresa, state);
+      return { valor: v };
+    },
+
+    /* ----- Empréstimos sócio ↔ empresa ----- */
+
+    /**
+     * Sócio empresta à empresa (PF → PJ). Cria passivo mutuo.
+     */
+    loanShareholderToCompany(state, empresaId, valor, opts = {}) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      const fin = this.ensureCompanyFinance(empresa, state);
+      const pct = this._requireShareholder(empresa, state);
+      const v = Math.round(Number(valor) || 0);
+      if (v < 1000) throw new Error('Mútuo mínimo: R$ 1.000.');
+      if ((state.player.dinheiro || 0) < v) throw new Error('Dinheiro pessoal insuficiente.');
+
+      const teto = Math.round(
+        Math.max(10000, (empresa.capitalSocial || 0) * (pct / 100) * MUTUO_PF_CAP_MULT)
+      );
+      const jaEmprestado = (fin.emprestimosSocio || [])
+        .filter((e) => e.status === 'ativo' && e.direcao === 'socio_para_empresa')
+        .reduce((s, e) => s + (e.saldo || 0), 0);
+      if (jaEmprestado + v > teto) {
+        throw new Error(`Limite de mútuo sócio→empresa: ${CGL.Utils.formatBRL(teto)}.`);
+      }
+
+      const prazoSem = Math.max(4, Math.min(208, Number(opts.prazoSem) || 52));
+      const taxaAnual = opts.taxaAnual != null ? Number(opts.taxaAnual) : 0.06;
+      const taxaSemanal = taxaAnual / 52;
+      const parcela = Math.round((v * (1 + taxaSemanal * prazoSem)) / prazoSem);
+
+      this.debitPersonal(state, v, {
+        categoria: 'emprestimo_socio',
+        descricao: `Empréstimo à ${empresa.nomeFantasia}`
+      });
+      this.creditEmpresa(state, empresaId, v, {
+        categoria: 'emprestimo_socio',
+        descricao: 'Mútuo recebido do sócio'
+      });
+
+      const contrato = {
+        id: CGL.Utils.uuid(),
+        direcao: 'socio_para_empresa',
+        valorOriginal: v,
+        saldo: v,
+        taxaAnual,
+        taxaSemanal,
+        prazoSem,
+        semanasRestantes: prazoSem,
+        parcela,
+        status: 'ativo',
+        semanaInicio: state.world?.semanaAtual || 0
+      };
+      fin.emprestimosSocio = fin.emprestimosSocio || [];
+      fin.emprestimosSocio.unshift(contrato);
+
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Mútuo do sócio',
+        descricao: `Recebeu ${CGL.Utils.formatBRL(v)} (prazo ${prazoSem} sem., ${(taxaAnual * 100).toFixed(1)}% a.a.).`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Empréstimo à empresa',
+        descricao: `Emprestou ${CGL.Utils.formatBRL(v)} a ${empresa.nomeFantasia}.`
+      });
+      this.rebuildBalanceSheet(empresa, state);
+      this.recalcIndicators(empresa, state);
+      return contrato;
+    },
+
+    /**
+     * Empresa empresta ao sócio (PJ → PF). Limites e juros obrigatórios.
+     */
+    loanCompanyToShareholder(state, empresaId, valor, opts = {}) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      const fin = this.ensureCompanyFinance(empresa, state);
+      const pct = this._requireShareholder(empresa, state);
+      if (pct < 10) throw new Error('Participação mínima de 10% para tomar mútuo da empresa.');
+      const v = Math.round(Number(valor) || 0);
+      if (v < 1000) throw new Error('Mútuo mínimo: R$ 1.000.');
+      if (v > this._caixaLivre(empresa)) throw new Error('Caixa insuficiente (buffer de segurança).');
+
+      const tetoCaixa = Math.round(this._caixaLivre(empresa) * MUTUO_PJ_FRAC / Math.max(MUTUO_PJ_FRAC, 0.01));
+      const teto = Math.min(
+        Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC),
+        Math.round((empresa.capitalSocial || 0) * (pct / 100) * 0.8),
+        tetoCaixa
+      );
+      const jaTomado = (fin.emprestimosSocio || [])
+        .filter((e) => e.status === 'ativo' && e.direcao === 'empresa_para_socio')
+        .reduce((s, e) => s + (e.saldo || 0), 0);
+      if (v > teto || jaTomado + v > teto + jaTomado * 0) {
+        // Limite líquido
+        if (jaTomado + v > Math.max(teto, Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC))) {
+          throw new Error(`Limite de mútuo empresa→sócio: ${CGL.Utils.formatBRL(Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC))}.`);
+        }
+      }
+      const limiteEfetivo = Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC);
+      if (jaTomado + v > limiteEfetivo) {
+        throw new Error(`Limite de mútuo empresa→sócio: ${CGL.Utils.formatBRL(limiteEfetivo)}.`);
+      }
+
+      const prazoSem = Math.max(4, Math.min(104, Number(opts.prazoSem) || 26));
+      // Juros obrigatórios quando empresa empresta ao sócio (evita retirada disfarçada)
+      const taxaAnual = opts.taxaAnual != null ? Math.max(0.08, Number(opts.taxaAnual)) : 0.12;
+      const taxaSemanal = taxaAnual / 52;
+      const parcela = Math.round((v * (1 + taxaSemanal * prazoSem)) / prazoSem);
+
+      this.debitEmpresa(state, empresaId, v, {
+        categoria: 'emprestimo_socio',
+        descricao: 'Mútuo concedido ao sócio'
+      });
+      this.creditPersonal(state, v, {
+        categoria: 'emprestimo_socio_recebido',
+        descricao: `Mútuo de ${empresa.nomeFantasia}`
+      });
+
+      const contrato = {
+        id: CGL.Utils.uuid(),
+        direcao: 'empresa_para_socio',
+        valorOriginal: v,
+        saldo: v,
+        taxaAnual,
+        taxaSemanal,
+        prazoSem,
+        semanasRestantes: prazoSem,
+        parcela,
+        status: 'ativo',
+        semanaInicio: state.world?.semanaAtual || 0
+      };
+      fin.emprestimosSocio = fin.emprestimosSocio || [];
+      fin.emprestimosSocio.unshift(contrato);
+
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Mútuo ao sócio',
+        descricao: `Concedeu ${CGL.Utils.formatBRL(v)} (${(taxaAnual * 100).toFixed(1)}% a.a., ${prazoSem} sem.).`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Empréstimo da empresa',
+        descricao: `Tomou ${CGL.Utils.formatBRL(v)} de ${empresa.nomeFantasia} (com juros).`
+      });
+      this.rebuildBalanceSheet(empresa, state);
+      this.recalcIndicators(empresa, state);
+      return contrato;
+    },
+
+    /** Processa parcelas semanais dos mútuos sócio–empresa */
+    _processShareholderLoans(empresa, state) {
+      const fin = empresa.finance;
+      if (!fin?.emprestimosSocio?.length) return;
+
+      fin.emprestimosSocio.filter((c) => c.status === 'ativo').forEach((c) => {
+        const parcela = c.parcela || 0;
+        const juros = Math.round((c.saldo || 0) * (c.taxaSemanal || 0));
+        const principal = Math.max(0, parcela - juros);
+
+        if (c.direcao === 'socio_para_empresa') {
+          // Empresa paga o sócio
+          try {
+            this.debitEmpresa(state, empresa.id, parcela, {
+              categoria: 'parcela_mutuo_socio',
+              descricao: 'Parcela mútuo (sócio credor)'
+            });
+            this.creditPersonal(state, parcela, {
+              categoria: 'parcela_mutuo_recebida',
+              descricao: `Parcela mútuo — ${empresa.nomeFantasia}`
+            });
+            c.saldo = Math.max(0, (c.saldo || 0) - principal);
+            c.semanasRestantes = Math.max(0, (c.semanasRestantes || 1) - 1);
+            if (c.saldo <= 0 || c.semanasRestantes <= 0) {
+              c.saldo = 0;
+              c.status = 'quitado';
+            }
+          } catch (e) {
+            c.status = 'atraso';
+          }
+        } else if (c.direcao === 'empresa_para_socio') {
+          // Sócio paga a empresa
+          try {
+            this.debitPersonal(state, parcela, {
+              categoria: 'parcela_mutuo_paga',
+              descricao: `Parcela mútuo — ${empresa.nomeFantasia}`
+            });
+            this.creditEmpresa(state, empresa.id, parcela, {
+              categoria: 'parcela_mutuo_socio',
+              descricao: 'Parcela mútuo (sócio devedor)'
+            });
+            c.saldo = Math.max(0, (c.saldo || 0) - principal);
+            c.semanasRestantes = Math.max(0, (c.semanasRestantes || 1) - 1);
+            if (c.saldo <= 0 || c.semanasRestantes <= 0) {
+              c.saldo = 0;
+              c.status = 'quitado';
+            }
+          } catch (e) {
+            c.status = 'atraso';
+            c.saldo = Math.round((c.saldo || 0) * (1 + (c.taxaSemanal || 0.002) * 1.5));
+          }
+        }
+      });
+    },
+
+    /* ----- Restituição de capital ----- */
+
+    /**
+     * Restitui capital ao sócio (quando permitido): reduz capital social e paga PF.
+     * Exige caixa livre, participação e que o capital residual cubra o mínimo da natureza.
+     */
+    restituteCapital(state, empresaId, valor) {
+      const empresa = CGL.Company.getById(state, empresaId);
+      if (!empresa?.ativa) throw new Error('Empresa inválida.');
+      this.ensureCompanyFinance(empresa, state);
+      const pct = this._requireShareholder(empresa, state);
+      if (pct < 50) throw new Error('Restituição exige controle (≥50%).');
+
+      const v = Math.round(Number(valor) || 0);
+      if (v < 500) throw new Error('Restituição mínima: R$ 500.');
+      if (v > this._caixaLivre(empresa)) throw new Error('Caixa insuficiente para restituir.');
+
+      const natureza = CGL.Data.getLegalNatureById?.(empresa.naturezaId) ||
+        (CGL.Data.legalNatures || []).find((n) => n.id === empresa.naturezaId);
+      const capitalMin = natureza?.capitalMin || 1000;
+      const tetoSocio = Math.round((empresa.capitalSocial || 0) * (pct / 100) * 0.5);
+      if (v > tetoSocio) {
+        throw new Error(`Teto de restituição (50% da sua fatia de capital): ${CGL.Utils.formatBRL(tetoSocio)}.`);
+      }
+      if ((empresa.capitalSocial || 0) - v < capitalMin) {
+        throw new Error(`Capital residual não pode ficar abaixo de ${CGL.Utils.formatBRL(capitalMin)}.`);
+      }
+      // Não restituir se lucros acumulados negativos (prejuízo a cobrir)
+      const fin = empresa.finance;
+      if ((fin.lucrosAcumulados || 0) < 0) {
+        throw new Error('Há prejuízos acumulados — restituição não permitida.');
+      }
+      if ((fin.falencia?.estagio || 0) >= 3) {
+        throw new Error('Empresa em estágio financeiro crítico — restituição bloqueada.');
+      }
+
+      this.debitEmpresa(state, empresaId, v, {
+        categoria: 'restituicao_capital',
+        descricao: 'Restituição de capital ao sócio'
+      });
+      this.creditPersonal(state, v, {
+        categoria: 'restituicao_capital_recebida',
+        descricao: `Restituição — ${empresa.nomeFantasia}`
+      });
+      empresa.capitalSocial = Math.max(capitalMin, Math.round((empresa.capitalSocial || 0) - v));
+
+      CGL.Company.addHistory(empresa, state, {
+        tipo: 'financeiro',
+        titulo: 'Restituição de capital',
+        descricao: `${CGL.Utils.formatBRL(v)} devolvidos. Capital social: ${CGL.Utils.formatBRL(empresa.capitalSocial)}.`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Restituição de capital',
+        descricao: `Recebeu ${CGL.Utils.formatBRL(v)} de ${empresa.nomeFantasia}.`
+      });
+      this.rebuildBalanceSheet(empresa, state);
+      this.recalcIndicators(empresa, state);
+      try { CGL.Company.syncPlayerEquity(state); } catch (e) { /* ok */ }
+      return { valor: v, capitalSocial: empresa.capitalSocial };
+    },
+
+    /** Crédito PF por venda de participação (canal formal) */
+    creditEquitySale(state, valor, empresaNome) {
+      const v = Math.round(Number(valor) || 0);
+      if (v <= 0) return 0;
+      this.ensurePersonal(state);
+      this.creditPersonal(state, v, {
+        categoria: 'venda_participacao',
+        descricao: `Venda de participação — ${empresaNome || 'empresa'}`
+      });
+      CGL.Player.addHistory(state, {
+        tipo: 'financeiro',
+        titulo: 'Venda de participação',
+        descricao: `Recebeu ${CGL.Utils.formatBRL(v)} pela venda societária.`
+      });
+      return v;
     },
 
     /* ========== Dividendos ========== */
