@@ -144,6 +144,32 @@
 
 .pos { color: var(--green); }
 .neg { color: var(--red); }
+.text-danger { color: var(--red); }
+
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline-list li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+}
+
+.finance-screen .kv-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  max-width: 28rem;
+}
+.finance-screen .kv-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 .tag {
   display: inline-block;
@@ -303,6 +329,33 @@
   gap: 0.5rem;
   align-items: center;
 }
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Fase 5 — Mercado */
+.market-screen .timeline .pos { color: var(--green); }
+.market-screen .timeline .neg { color: var(--red); }
+
+/* Fase 7 — RH */
+.hr-screen .row-talent td:first-child { color: var(--gold); }
+.hr-screen .row-warn { background: rgba(240, 113, 120, 0.06); }
+.btn-danger {
+  background: rgba(240, 113, 120, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.btn-danger:hover { background: rgba(240, 113, 120, 0.28); }
 
 @media (max-width: 640px) {
   .nature-grid { grid-template-columns: 1fr; }
