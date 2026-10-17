@@ -191,7 +191,12 @@
         rd: {},
         logistics: {},
         international: {},
-        ipo: { elegivel: !!natureza.permiteIPO, listada: false }
+        holding: {},
+        ipo: {
+          elegivel: !!natureza.permiteIPO,
+          listada: false,
+          status: 'privada'
+        }
       };
 
       this.addHistory(empresa, state, {
@@ -214,9 +219,30 @@
 
       state.statistics.companiesFounded = (state.statistics.companiesFounded || 0) + 1;
 
-      // Fase 3: contas PJ + espelho PF
+      // Fase 3–5: contas PJ + mercado de capitais
       if (CGL.Finance?.onCompanyCreated) {
         try { CGL.Finance.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Market?.ensureCompanyMarket) {
+        try { CGL.Market.ensureCompanyMarket(empresa, state); } catch (err) { /* ok */ }
+      }
+      if (CGL.Hr?.onCompanyCreated) {
+        try { CGL.Hr.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Marketing?.onCompanyCreated) {
+        try { CGL.Marketing.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Rd?.onCompanyCreated) {
+        try { CGL.Rd.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Logistics?.onCompanyCreated) {
+        try { CGL.Logistics.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.International?.onCompanyCreated) {
+        try { CGL.International.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
+      }
+      if (CGL.Holding?.onCompanyCreated) {
+        try { CGL.Holding.onCompanyCreated(empresa, state); } catch (err) { console.warn(err); }
       }
 
       CGL.Player.addHistory(state, {
@@ -336,20 +362,33 @@
     },
 
     _normalizeAdmins(input, socios, player) {
-      if (Array.isArray(input) && input.length) {
-        return input.map((a) => ({
-          id: a.id || CGL.Utils.uuid(),
-          nome: a.nome,
-          cargo: a.cargo || 'Administrador',
-          socioId: a.socioId || null
-        }));
-      }
       const jog = socios.find((s) => s.tipo === 'jogador');
+      const nomeJog = `${player.nome} ${player.sobrenome}`;
+      if (Array.isArray(input) && input.length) {
+        return input.map((a) => {
+          const linkedJog = a.socioId === jog?.id ||
+            (a.nome && a.nome.toLowerCase() === nomeJog.toLowerCase());
+          return {
+            id: a.id || CGL.Utils.uuid(),
+            nome: a.nome,
+            cargo: a.cargo || 'Administrador',
+            socioId: a.socioId || (linkedJog ? jog?.id : null) || null,
+            playerId: linkedJog ? player.id : (a.playerId || null),
+            proLaboreMensal: a.proLaboreMensal != null ? a.proLaboreMensal : null,
+            ehContratado: a.ehContratado != null ? !!a.ehContratado : !linkedJog,
+            satisfacao: a.satisfacao != null ? a.satisfacao : (linkedJog ? 80 : 70)
+          };
+        });
+      }
       return [{
         id: CGL.Utils.uuid(),
-        nome: `${player.nome} ${player.sobrenome}`,
+        nome: nomeJog,
         cargo: 'Administrador',
-        socioId: jog?.id || null
+        socioId: jog?.id || null,
+        playerId: player.id,
+        proLaboreMensal: null,
+        ehContratado: false,
+        satisfacao: 80
       }];
     },
 
@@ -675,7 +714,12 @@
 
       const valuation = this.calcValuation(empresa, state);
       const preco = opts.preco ?? Math.round(valuation * (stake / 100) * 0.95);
-      state.player.dinheiro = (state.player.dinheiro || 0) + preco;
+      // Canal formal PF: venda de participação (não mistura caixa PJ)
+      if (CGL.Finance?.creditEquitySale) {
+        CGL.Finance.creditEquitySale(state, preco, empresa.nomeFantasia);
+      } else {
+        state.player.dinheiro = (state.player.dinheiro || 0) + preco;
+      }
 
       if (stake >= 99 || opts.venderTudo) {
         // Vende a terceiros (vira concorrente ou fecha no mercado)
@@ -769,7 +813,28 @@
       const residual = Math.max(0, (empresa.caixa || 0) - (empresa.endividamento || 0) * 0.5);
       const stake = this.playerStake(empresa, state.player.id) / 100;
       const payout = Math.round(residual * stake);
-      state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+      // Liquidação = restituição residual (canal formal PF; não mistura gasto livre)
+      if (payout > 0) {
+        const debitavel = Math.min(payout, empresa.caixa || 0);
+        try {
+          if (debitavel > 0 && empresa.finance && CGL.Finance?.debitEmpresa) {
+            CGL.Finance.debitEmpresa(state, empresaId, debitavel, {
+              categoria: 'restituicao_capital',
+              descricao: 'Liquidação — restituição ao sócio'
+            });
+          }
+          if (CGL.Finance?.creditPersonal) {
+            CGL.Finance.creditPersonal(state, payout, {
+              categoria: 'restituicao_capital_recebida',
+              descricao: `Liquidação — ${empresa.nomeFantasia}`
+            });
+          } else {
+            state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+          }
+        } catch (e) {
+          state.player.dinheiro = (state.player.dinheiro || 0) + payout;
+        }
+      }
 
       empresa.ativa = false;
       empresa.fechada = true;
@@ -859,12 +924,18 @@
         rd: {},
         logistics: {},
         international: {},
-        ipo: { elegivel: false, listada: false },
+        ipo: { elegivel: false, listada: false, status: 'privada' },
         ai: {
           agressividade: CGL.Utils.randomFloat(0.3, 0.9),
           foco: CGL.Utils.pick(['crescimento', 'preco', 'qualidade', 'expansao'])
         }
       };
+      if (CGL.Market?.ensureCompanyMarket) {
+        try { CGL.Market.ensureCompanyMarket(empresa, state); } catch (err) { /* ok */ }
+      }
+      if (CGL.Marketing?.ensureCompanyMarketing) {
+        try { CGL.Marketing.ensureCompanyMarketing(empresa, state); } catch (err) { /* ok */ }
+      }
 
       this.addHistory(empresa, state, {
         tipo: 'fundacao',
@@ -914,18 +985,92 @@
 
       // Receita base: capital + headcount (micro começa perto do break-even)
       const base = (empresa.capitalSocial || 10000) * 0.012 + (empresa.funcionarios || 1) * 950;
-      const eff = (empresa.eficiencia || 50) / 100;
-      const tech = (empresa.nivelTech || 30) / 100;
+      let eff = (empresa.eficiencia || 50) / 100;
+      let tech = (empresa.nivelTech || 30) / 100;
       const culture = (empresa.cultura || 50) / 100;
-      const margin = (seg?.margem || 0.12) * (natureza?.impostoMult ? (2 - natureza.impostoMult) : 1);
-      const demand = (seg?.crescimento || 1) * stateMult * (0.85 + rep / 250);
+      const marginBase = (seg?.margem || 0.12) * (natureza?.impostoMult ? (2 - natureza.impostoMult) : 1);
+      // Fase 8: demanda por marca/preço/qualidade/distribuição/ads/concorrência — não só por existir
+      let mktDemand = 1;
+      let marginMult = 1;
+      let mktCost = 0;
+      if (CGL.Marketing?.calcDemandFactors) {
+        try {
+          CGL.Marketing.ensureCompanyMarketing(empresa, state);
+          const dem = CGL.Marketing.calcDemandFactors(empresa, state);
+          mktDemand = dem?.fator || 1;
+          marginMult = CGL.Marketing.calcMarginMult(empresa) || 1;
+          mktCost = CGL.Marketing.weeklyMarketingCostEstimate(empresa) || 0;
+          if (empresa.marketing) empresa.marketing.custoSemanal = Math.round(mktCost);
+          if (CGL.Marketing.syncFinanceHook) CGL.Marketing.syncFinanceHook(empresa, state);
+        } catch (e) { /* fallback legado */ }
+      }
+      // Fase 9: P&D — eficiência, tech, demanda de produtos, custos e obsolescência
+      let rdCost = 0;
+      let rdCostCut = 0;
+      if (CGL.Rd?.ensureCompanyRd) {
+        try {
+          CGL.Rd.ensureCompanyRd(empresa, state);
+          const effM = CGL.Rd.efficiencyMult(empresa) || 1;
+          eff = CGL.Utils.clamp(eff * effM, 0.1, 1.4);
+          tech = CGL.Utils.clamp((empresa.rd.dept.nivelTech || empresa.nivelTech || 30) / 100, 0.05, 1);
+          mktDemand *= CGL.Rd.productDemandBoost(empresa) || 1;
+          rdCostCut = CGL.Rd.costReduction(empresa) || 0;
+          rdCost = CGL.Rd.weeklyRdCostEstimate(empresa) || 0;
+          if (CGL.Rd.syncFinanceHook) CGL.Rd.syncFinanceHook(empresa, state);
+        } catch (e) { /* ok */ }
+      }
+      // Fase 10: logística — produção depende de materiais; distribuição e custos
+      let logCost = 0;
+      let logProd = 1;
+      if (CGL.Logistics?.ensureCompanyLogistics) {
+        try {
+          CGL.Logistics.ensureCompanyLogistics(empresa, state);
+          CGL.Logistics._updateChainHealth(empresa);
+          logProd = CGL.Logistics.productionMult(empresa) || 1;
+          mktDemand *= CGL.Logistics.distributionBoost(empresa) || 1;
+          logCost = CGL.Logistics.weeklyLogisticsCostEstimate(empresa, state) || 0;
+          if (CGL.Logistics.syncFinanceHook) CGL.Logistics.syncFinanceHook(empresa, state);
+        } catch (e) { /* ok */ }
+      }
+      // Fase 11: internacional — receita/custo EXIM + boost de demanda global
+      let intlCost = 0;
+      let intlRev = 0;
+      if (CGL.International?.ensureCompanyIntl) {
+        try {
+          CGL.International.ensureCompanyIntl(empresa, state);
+          mktDemand *= CGL.International.intlDemandBoost(empresa, state) || 1;
+          intlCost = CGL.International.weeklyIntlCostEstimate(empresa, state) || 0;
+          intlRev = CGL.International.weeklyIntlRevenue(empresa, state) || 0;
+          if (CGL.International.syncFinanceHook) CGL.International.syncFinanceHook(empresa, state);
+        } catch (e) { /* ok */ }
+      }
+      // Fase 12: holding — sinergias, marca do grupo, custos corporativos compartilhados
+      let holdingCost = 0;
+      let synRev = 1;
+      let synCost = 1;
+      let sharedRelief = 1;
+      if (CGL.Holding?.ensureCompanyHolding) {
+        try {
+          CGL.Holding.ensureCompanyHolding(empresa, state);
+          synRev = CGL.Holding.synergyRevenueMult(empresa) || 1;
+          synCost = CGL.Holding.synergyCostMult(empresa) || 1;
+          sharedRelief = CGL.Holding.sharedCostRelief(empresa, state) || 1;
+          if (empresa.isHolding) {
+            holdingCost = CGL.Holding.weeklyHoldingCostEstimate(empresa, state) || 0;
+          }
+          mktDemand *= CGL.Holding.brandDemandMult(state) || 1;
+          if (CGL.Holding.syncFinanceHook) CGL.Holding.syncFinanceHook(empresa, state);
+        } catch (e) { /* ok */ }
+      }
+      const margin = marginBase * marginMult;
+      const demand = (seg?.crescimento || 1) * stateMult * (0.55 + rep / 350) * mktDemand;
 
       // Filiais
       let branchRev = 0;
       let branchCost = 0;
       (empresa.filiais || []).forEach((f) => {
         const fm = CGL.Data.stateProfitMult(f.estado) || 1;
-        const rev = (f.capacidade || 100) * 15 * fm * (0.8 + eff * 0.4);
+        const rev = (f.capacidade || 100) * 15 * fm * (0.8 + eff * 0.4) * (0.7 + mktDemand * 0.3);
         const cost = rev * (0.75 - margin * 0.3) + (f.funcionarios || 0) * 600;
         f.receita = rev;
         f.custos = cost;
@@ -934,24 +1079,33 @@
         branchCost += cost;
       });
 
-      let receita = base * demand * (0.75 + eff * 0.45 + tech * 0.2) + branchRev;
+      let receita = base * demand * (0.75 + eff * 0.45 + tech * 0.2) * logProd + branchRev + intlRev;
+      receita *= synRev;
       if (empresa.isHolding && natureza?.holdingTipo === 'patrimonial') {
         receita *= 0.35; // holding patrimonial: receita baixa operacional
       }
 
-      // Custos: margem do segmento + cultura; floor evita prejuízo estrutural em micro saudável
+      // Custos: margem do segmento + cultura + marketing + P&D + logística + intl + holding − redução tech
       let custos = receita * (1 - margin * (0.85 + culture * 0.25)) + branchCost;
       custos += (empresa.endividamento || 0) * 0.002; // juros simplificados
+      custos += mktCost;
+      custos += rdCost;
+      custos += logCost;
+      custos += intlCost;
+      custos += holdingCost;
+      custos *= synCost;
+      custos *= sharedRelief;
+      custos *= 1 - Math.min(0.35, rdCostCut);
       custos *= natureza?.impostoMult || 1;
       if (!empresa.concorrente && (empresa.porte === 'micro' || empresa.porte === 'pequena')) {
         custos *= 0.92;
       }
 
-      // Concorrência no segmento
+      // Concorrência estrutural no segmento (pressão comercial extra já está em mktDemand)
       const rivals = this.listAll(state).filter(
         (e) => e.ativa && e.segmentoId === empresa.segmentoId && e.id !== empresa.id
       );
-      const pressure = Math.min(0.35, rivals.length * 0.015 * (seg?.concorrencia || 0.5));
+      const pressure = Math.min(0.25, rivals.length * 0.01 * (seg?.concorrencia || 0.5));
       receita *= 1 - pressure;
 
       const lucro = receita - custos;
@@ -1056,6 +1210,11 @@
       if (ai.foco === 'qualidade' && roll < 0.12) {
         empresa.reputacao.qualidade = CGL.Utils.clamp(empresa.reputacao.qualidade + 1, 0, 100);
         empresa.caixa = Math.max(0, empresa.caixa - 1500);
+      }
+
+      if (ai.foco === 'preco' && roll < 0.1 && empresa.marketing?.precificacao) {
+        empresa.marketing.precificacao.estrategia = 'penetracao';
+        empresa.marketing.precificacao.indicePreco = 0.75;
       }
 
       // Chance rara de falir
