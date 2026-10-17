@@ -44,10 +44,16 @@
           companiesFounded: 0,
           peakNetWorth: 0
         },
-        // Slots futuros (Fase 3+)
-        market: {},
+        // Mercado de capitais (Fase 5) — bootstrap em Market.ensureMarket
+        market: CGL.Market?.createEmptyMarket ? CGL.Market.createEmptyMarket() : {},
+        // Dívida / captação (Fase 6)
+        debt: CGL.Debt?.createEmptyDebtState ? CGL.Debt.createEmptyDebtState() : {},
+        // RH / cultura (Fase 7)
+        hr: CGL.Hr?.createEmptyHrState ? CGL.Hr.createEmptyHrState() : {},
+        // Marketing / marca (Fase 8)
+        marketing: CGL.Marketing?.createEmptyMarketingState
+          ? CGL.Marketing.createEmptyMarketingState() : {},
         finance: {},
-        hr: {},
         rd: {},
         logistics: {},
         international: {},
@@ -104,6 +110,18 @@
       if (CGL.Finance?.migrateAll) {
         try { CGL.Finance.migrateAll(this.state); } catch (e) { /* ignore */ }
       }
+      if (CGL.Market?.migrateAll) {
+        try { CGL.Market.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Debt?.migrateAll) {
+        try { CGL.Debt.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Hr?.migrateAll) {
+        try { CGL.Hr.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Marketing?.migrateAll) {
+        try { CGL.Marketing.migrateAll(this.state); } catch (e) { /* ignore */ }
+      }
       try { CGL.Company.syncPlayerEquity(this.state); } catch (e) { /* ignore */ }
       this.applySettingsToDOM(this.state.settings);
       this.phase = 'playing';
@@ -120,6 +138,18 @@
       this.state.statistics.peakNetWorth = this.state.player.patrimonio;
       if (CGL.Finance?.ensurePersonal) {
         try { CGL.Finance.ensurePersonal(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Market?.ensureMarket) {
+        try { CGL.Market.ensureMarket(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Debt?.ensureDebt) {
+        try { CGL.Debt.ensureDebt(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Hr?.ensureHr) {
+        try { CGL.Hr.ensureHr(this.state); } catch (e) { /* ignore */ }
+      }
+      if (CGL.Marketing?.ensureMarketing) {
+        try { CGL.Marketing.ensureMarketing(this.state); } catch (e) { /* ignore */ }
       }
       this.phase = 'playing';
       this.save();
@@ -171,11 +201,23 @@
           CGL.Events.notify('info', 'Família', msg);
         });
 
-        // 5. Empresas, holdings, concorrência (Fase 2)
+        // 5. Empresas, holdings, concorrência (Fase 2) — demanda usa Marketing
         CGL.Company.weeklyTick(s);
 
-        // 5b. Finanças empresariais / pessoais (Fase 3)
+        // 5b. Finanças empresariais / pessoais (Fase 3–4)
         if (CGL.Finance?.weeklyTick) CGL.Finance.weeklyTick(s);
+
+        // 5c. Mercado de capitais (Fase 5)
+        if (CGL.Market?.weeklyTick) CGL.Market.weeklyTick(s);
+
+        // 5d. RH / clima / folha métricas (Fase 7) — após Finance (DRE já pode usar folha RH)
+        if (CGL.Hr?.weeklyTick) CGL.Hr.weeklyTick(s);
+
+        // 5e. Marketing / marca / campanhas / crises (Fase 8) — após vendas da semana
+        if (CGL.Marketing?.weeklyTick) CGL.Marketing.weeklyTick(s);
+
+        // 5f. Dívida / captação (Fase 6) — agenda usa folha RH + mkt
+        if (CGL.Debt?.weeklyTick) CGL.Debt.weeklyTick(s);
 
         // 6. Eventos aleatórios
         CGL.Events.weeklyTick(s);
