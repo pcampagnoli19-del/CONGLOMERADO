@@ -147,7 +147,8 @@
     { id: 'nunca', nome: 'Nunca distribuir', payout: 0, satisfacaoDelta: -0.4 },
     { id: 'minima', nome: 'Distribuição mínima', payout: 0.15, satisfacaoDelta: 0.3 },
     { id: 'parcial', nome: 'Distribuição parcial', payout: 0.4, satisfacaoDelta: 0.8 },
-    { id: 'maxima', nome: 'Distribuição máxima', payout: 0.75, satisfacaoDelta: 1.2 }
+    { id: 'maxima', nome: 'Distribuição máxima', payout: 0.75, satisfacaoDelta: 1.2 },
+    { id: 'extraordinaria', nome: 'Distribuição extraordinária', payout: 0.95, satisfacaoDelta: 1.6 }
   ];
 
   const bankruptcyStages = [

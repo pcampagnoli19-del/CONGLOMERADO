@@ -1498,22 +1498,14 @@
       if (v < 1000) throw new Error('Mútuo mínimo: R$ 1.000.');
       if (v > this._caixaLivre(empresa)) throw new Error('Caixa insuficiente (buffer de segurança).');
 
-      const tetoCaixa = Math.round(this._caixaLivre(empresa) * MUTUO_PJ_FRAC / Math.max(MUTUO_PJ_FRAC, 0.01));
-      const teto = Math.min(
+      const limiteEfetivo = Math.min(
         Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC),
         Math.round((empresa.capitalSocial || 0) * (pct / 100) * 0.8),
-        tetoCaixa
+        this._caixaLivre(empresa)
       );
       const jaTomado = (fin.emprestimosSocio || [])
         .filter((e) => e.status === 'ativo' && e.direcao === 'empresa_para_socio')
         .reduce((s, e) => s + (e.saldo || 0), 0);
-      if (v > teto || jaTomado + v > teto + jaTomado * 0) {
-        // Limite líquido
-        if (jaTomado + v > Math.max(teto, Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC))) {
-          throw new Error(`Limite de mútuo empresa→sócio: ${CGL.Utils.formatBRL(Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC))}.`);
-        }
-      }
-      const limiteEfetivo = Math.round((empresa.caixa || 0) * MUTUO_PJ_FRAC);
       if (jaTomado + v > limiteEfetivo) {
         throw new Error(`Limite de mútuo empresa→sócio: ${CGL.Utils.formatBRL(limiteEfetivo)}.`);
       }
@@ -1636,8 +1628,7 @@
       if (v < 500) throw new Error('Restituição mínima: R$ 500.');
       if (v > this._caixaLivre(empresa)) throw new Error('Caixa insuficiente para restituir.');
 
-      const natureza = CGL.Data.getLegalNatureById?.(empresa.naturezaId) ||
-        (CGL.Data.legalNatures || []).find((n) => n.id === empresa.naturezaId);
+      const natureza = CGL.Data.getLegalNatureById(empresa.naturezaId);
       const capitalMin = natureza?.capitalMin || 1000;
       const tetoSocio = Math.round((empresa.capitalSocial || 0) * (pct / 100) * 0.5);
       if (v > tetoSocio) {
@@ -1646,13 +1637,17 @@
       if ((empresa.capitalSocial || 0) - v < capitalMin) {
         throw new Error(`Capital residual não pode ficar abaixo de ${CGL.Utils.formatBRL(capitalMin)}.`);
       }
-      // Não restituir se lucros acumulados negativos (prejuízo a cobrir)
       const fin = empresa.finance;
-      if ((fin.lucrosAcumulados || 0) < 0) {
-        throw new Error('Há prejuízos acumulados — restituição não permitida.');
+      this.rebuildBalanceSheet(empresa, state);
+      // Bloqueia se PL negativo ou estágio crítico (prejuízo a cobrir / insolvência)
+      if ((fin.balanco?.totalPL || 0) <= 0) {
+        throw new Error('Patrimônio líquido insuficiente — restituição não permitida.');
       }
       if ((fin.falencia?.estagio || 0) >= 3) {
         throw new Error('Empresa em estágio financeiro crítico — restituição bloqueada.');
+      }
+      if ((empresa.endividamento || 0) > (fin.balanco?.totalAtivos || 0) * 0.85) {
+        throw new Error('Endividamento elevado — restituição bloqueada.');
       }
 
       this.debitEmpresa(state, empresaId, v, {
@@ -1745,9 +1740,14 @@
       });
       fin.lucrosAcumulados = Math.max(0, (fin.lucrosAcumulados || 0) - total);
 
+      // Pro-rata à participação (sócios com direito a dividendos)
+      const elegiveis = (empresa.socios || []).filter(
+        (s) => s.direitoDividendos !== false && (s.percentual || 0) > 0
+      );
+      const somaPct = elegiveis.reduce((a, s) => a + (s.percentual || 0), 0) || 100;
       const pagos = [];
-      (empresa.socios || []).forEach((s) => {
-        const parte = Math.round(total * ((s.percentual || 0) / 100));
+      elegiveis.forEach((s) => {
+        const parte = Math.round(total * ((s.percentual || 0) / somaPct));
         if (parte <= 0) return;
         if (s.tipo === 'jogador' || s.playerId === state.player?.id) {
           this.creditPersonal(state, parte, {
@@ -1762,7 +1762,7 @@
         } else {
           s.satisfacao = CGL.Utils.clamp((s.satisfacao || 60) + 2 + pol.satisfacaoDelta, 0, 100);
         }
-        pagos.push({ socioId: s.id || s.nome, nome: s.nome, valor: parte });
+        pagos.push({ socioId: s.id || s.nome, nome: s.nome, valor: parte, pct: s.percentual });
       });
 
       CGL.Company.addHistory(empresa, state, {
@@ -1934,14 +1934,20 @@
       this.ensureStateFinance(state);
       this.ensurePersonal(state);
 
+      const semana = state.world?.semanaAtual || 0;
       const empresas = CGL.Company.listAll(state).filter((e) => e.ativa && !e.concorrente);
       empresas.forEach((empresa) => {
         this.ensureCompanyFinance(empresa, state);
         // Company já atualizou receita/custos/lucro/caixa
         this.applyOperatingWeek(empresa, state);
         this._processDebtService(empresa, state);
+        this._processShareholderLoans(empresa, state);
         this._processInvestments(empresa.finance, state, { empresaId: empresa.id });
         this._processAccountFeesAndYield(empresa, state);
+        // Pró-labore mensal (a cada 4 semanas)
+        if (semana > 0 && semana % 4 === 0) {
+          this.payProLabores(state, empresa.id);
+        }
         this._autoDividends(empresa, state);
         this.rebuildBalanceSheet(empresa, state);
         this.recalcIndicators(empresa, state);

@@ -318,9 +318,16 @@
           </section>
 
           <section class="section-block">
-            <h2>Administradores</h2>
+            <div class="row-between">
+              <h2>Administradores</h2>
+              ${CGL.FinanceUI ? `<button type="button" class="btn btn-sm btn-secondary" data-goto-fin-tab="${e.id}|remuneracao">Definir pró-labore</button>` : ''}
+            </div>
             <ul>${(e.administradores || []).map((a) => `
-              <li><strong>${CGL.Utils.escapeHtml(a.nome)}</strong> — ${CGL.Utils.escapeHtml(a.cargo)}</li>
+              <li>
+                <strong>${CGL.Utils.escapeHtml(a.nome)}</strong> — ${CGL.Utils.escapeHtml(a.cargo)}
+                ${a.proLaboreMensal != null ? ` · pró-labore ${CGL.Utils.formatBRL(a.proLaboreMensal)}/mês` : ''}
+                ${a.ehContratado ? ' <em class="tag">contratado</em>' : ''}
+              </li>
             `).join('')}</ul>
           </section>
 
