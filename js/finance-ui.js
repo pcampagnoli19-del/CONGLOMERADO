@@ -1,6 +1,7 @@
 /**
- * CONGLOMERADO — Telas de Finanças (Fase 3)
+ * CONGLOMERADO — Telas de Finanças (Fases 3–6)
  * Visão conglomerado, ficha financeira da empresa, finanças pessoais.
+ * Fase 4: Remuneração · Fase 5: rating/Mercado · Fase 6: Endividamento + Agenda.
  */
 (function (global) {
   'use strict';
@@ -8,7 +9,7 @@
   const FinanceUI = {
     view: 'hub', // hub | empresa | pessoal
     selectedId: null,
-    empresaTab: 'resumo', // resumo | contas | fluxo | dre | balanco | credito | aplicacoes | dividendos
+    empresaTab: 'resumo', // resumo | contas | fluxo | dre | balanco | credito | endividamento | agenda | aplicacoes | remuneracao
     drePeriodo: 'semanal',
 
     render(main) {
@@ -34,27 +35,31 @@
           <header class="screen-header row-between">
             <div>
               <h1>Finanças</h1>
-              <p class="muted">Caixa por empresa — holdings não compartilham recursos automaticamente.</p>
+              <p class="muted">PJ e PF separados — retiradas só via pró-labore, dividendos, reembolso, mútuo, venda ou restituição.</p>
             </div>
-            <button type="button" class="btn btn-secondary" id="btn-pf">Finanças pessoais</button>
+            <div class="btn-row">
+              <button type="button" class="btn btn-secondary" id="btn-mercado">Mercado</button>
+              <button type="button" class="btn btn-secondary" id="btn-pf">Conta pessoal (PF)</button>
+            </div>
+            <p class="muted" style="margin-top:0.5rem">Dívida profunda: abra uma empresa → abas Endividamento / Agenda financeira.</p>
           </header>
 
           <div class="dash-grid">
-            ${CGL.UI.card('Caixa do grupo', `
+            ${CGL.UI.card('Caixa do grupo (PJ)', `
               <div class="stat-gold">${CGL.Utils.formatBRL(sum.caixaGrupo, { compact: true })}</div>
-              <p class="muted">${sum.empresas} empresa(s) sob seu controle</p>
+              <p class="muted">${sum.empresas} empresa(s) · caixas independentes</p>
             `)}
             ${CGL.UI.card('Liquidez média', `
               <div class="stat-gold">${sum.liquidezMedia.toFixed(2)}x</div>
               <p class="muted">Indicador corrente agregado</p>
             `)}
-            ${CGL.UI.card('Endividamento', `
+            ${CGL.UI.card('Endividamento PJ', `
               <div class="stat-gold">${CGL.Utils.formatBRL(sum.dividaGrupo, { compact: true })}</div>
-              <p class="muted">Empréstimos + financiamentos + debêntures</p>
+              <p class="muted">Bancos + debêntures + mútuos de sócios</p>
             `)}
-            ${CGL.UI.card('Caixa pessoal', `
+            ${CGL.UI.card('Patrimônio pessoal (PF)', `
               <div class="stat-gold">${CGL.Utils.formatBRL(sum.caixaPessoal, { compact: true })}</div>
-              <p class="muted">Contas PF separadas das PJ</p>
+              <p class="muted">Nunca confundir com caixa das empresas</p>
               <button type="button" class="btn btn-sm btn-secondary" id="btn-pf-2">Abrir PF</button>
             `)}
           </div>
@@ -69,6 +74,7 @@
                       <th>Empresa</th>
                       <th>Caixa</th>
                       <th>Dívida</th>
+                      <th>Rating</th>
                       <th>Liquidez</th>
                       <th>Risco</th>
                       <th>Estágio</th>
@@ -78,6 +84,10 @@
                   <tbody>
                     ${companies.map((e) => {
                       CGL.Finance.ensureCompanyFinance(e, state);
+                      if (CGL.Market) {
+                        CGL.Market.ensureCompanyMarket(e, state);
+                        CGL.Market.updateCreditRating(e, state);
+                      }
                       const ind = e.finance.indicadores || {};
                       const fal = CGL.Data.getBankruptcyStage(e.finance.falencia?.estagio || 0);
                       return `<tr>
@@ -87,6 +97,7 @@
                         </td>
                         <td>${CGL.Utils.formatBRL(e.caixa, { compact: true })}</td>
                         <td>${CGL.Utils.formatBRL(e.endividamento, { compact: true })}</td>
+                        <td><strong>${CGL.Utils.escapeHtml(e.rating?.nota || '—')}</strong></td>
                         <td>${(ind.liquidez ?? 0).toFixed(2)}</td>
                         <td>${Math.round(ind.riscoFinanceiro || 0)}</td>
                         <td><span class="tag">${CGL.Utils.escapeHtml(fal.nome)}</span></td>
@@ -101,6 +112,9 @@
         </div>
       `;
 
+      main.querySelector('#btn-mercado')?.addEventListener('click', () => {
+        CGL.UI.navigate('mercado');
+      });
       main.querySelector('#btn-pf')?.addEventListener('click', () => {
         this.view = 'pessoal';
         this.render(main);
@@ -135,9 +149,13 @@
         { id: 'dre', label: 'DRE' },
         { id: 'balanco', label: 'Balanço' },
         { id: 'credito', label: 'Crédito' },
+        { id: 'endividamento', label: 'Endividamento' },
+        { id: 'agenda', label: 'Agenda financeira' },
         { id: 'aplicacoes', label: 'Aplicações' },
-        { id: 'dividendos', label: 'Dividendos' }
+        { id: 'remuneracao', label: 'Remuneração' }
       ];
+      // Compat: saves/UI antigos apontando para "dividendos"
+      if (this.empresaTab === 'dividendos') this.empresaTab = 'remuneracao';
 
       main.innerHTML = `
         <div class="screen finance-screen">
@@ -184,8 +202,15 @@
       else if (tab === 'dre') this._tabDre(el, e, state);
       else if (tab === 'balanco') this._tabBalanco(el, e, state);
       else if (tab === 'credito') this._tabCredito(el, e, state);
+      else if (tab === 'endividamento') {
+        if (CGL.DebtUI) CGL.DebtUI.renderEndividamento(el, e, state);
+        else el.innerHTML = '<p class="muted">Módulo de dívida indisponível.</p>';
+      } else if (tab === 'agenda') {
+        if (CGL.DebtUI) CGL.DebtUI.renderAgenda(el, e, state);
+        else el.innerHTML = '<p class="muted">Agenda financeira indisponível.</p>';
+      }
       else if (tab === 'aplicacoes') this._tabAplicacoes(el, e, state);
-      else if (tab === 'dividendos') this._tabDividendos(el, e, state);
+      else if (tab === 'remuneracao' || tab === 'dividendos') this._tabRemuneracao(el, e, state);
     },
 
     _tabResumo(el, e, state) {
@@ -214,12 +239,33 @@
             <p class="muted">Falência só ocorre após sequência de problemas — não é instantânea.</p>
             ${CGL.UI.progressBar('Estágio', (fal.id / 8) * 100, { invert: true })}
           `)}
+          ${CGL.Market ? (() => {
+            CGL.Market.ensureCompanyMarket(e, state);
+            CGL.Market.updateCreditRating(e, state);
+            const val = CGL.Market.calcValuation(e, state);
+            return CGL.UI.card('Mercado de capitais', `
+              <ul class="kv-list">
+                <li><span>Rating</span><span>${e.rating.nota}</span></li>
+                <li><span>Valuation</span><span>${CGL.Utils.formatBRL(val, { compact: true })}</span></li>
+                <li><span>Confiança</span><span>${Math.round(e.confiancaMercado || 0)}</span></li>
+                <li><span>IPO</span><span>${e.ipo.listada ? e.ipo.ticker : e.ipo.status}</span></li>
+              </ul>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-go-market">Abrir Mercado</button>
+            `);
+          })() : ''}
         </div>
         <section class="section-block actions-row">
           <button type="button" class="btn btn-secondary" id="btn-transfer">Transferência intercompany</button>
         </section>
       `;
       el.querySelector('#btn-transfer')?.addEventListener('click', () => this._modalTransfer(e.id));
+      el.querySelector('#btn-go-market')?.addEventListener('click', () => {
+        if (CGL.MarketUI) {
+          CGL.MarketUI.view = 'empresa';
+          CGL.MarketUI.selectedId = e.id;
+        }
+        CGL.UI.navigate('mercado');
+      });
     },
 
     _tabContas(el, e, state) {
@@ -401,6 +447,10 @@
       el.querySelector('#btn-deb')?.addEventListener('click', () => this._modalDebentures(e.id));
       el.querySelectorAll('[data-reno]').forEach((btn) => {
         btn.onclick = () => {
+          if (CGL.DebtUI) {
+            CGL.DebtUI._modalRenegotiate(e.id, btn.dataset.reno);
+            return;
+          }
           try {
             CGL.Finance.renegotiateLoan(state, e.id, btn.dataset.reno);
             CGL.Game.save(false);
@@ -411,6 +461,11 @@
           }
         };
       });
+      const linkEndiv = document.createElement('p');
+      linkEndiv.className = 'muted';
+      linkEndiv.style.marginTop = '1rem';
+      linkEndiv.innerHTML = 'Painel completo: aba <strong>Endividamento</strong> · obrigações em <strong>Agenda financeira</strong>.';
+      el.appendChild(linkEndiv);
     },
 
     _tabAplicacoes(el, e, state) {
@@ -452,34 +507,122 @@
       });
     },
 
-    _tabDividendos(el, e, state) {
+    _tabRemuneracao(el, e, state) {
       const fin = e.finance;
+      CGL.Finance._ensureAdminsProLabore(e);
       const pol = CGL.Data.getDividendPolicyById(fin.politicaDividendos);
+      const ref = CGL.Finance.referenciaProLabore(e);
+      const mutuos = (fin.emprestimosSocio || []).filter((m) => m.status === 'ativo' || m.status === 'atraso');
+      const canais = (CGL.Finance.canaisRetiradaPermitidos() || []).join(', ');
+
       el.innerHTML = `
+        <p class="muted" style="margin-bottom:1rem">
+          Conta <strong>PJ</strong> desta empresa ≠ conta <strong>PF</strong> do CEO.
+          Canais de retirada: ${CGL.Utils.escapeHtml(canais)}.
+        </p>
         <div class="dash-grid">
-          ${CGL.UI.card('Política atual', `
+          ${CGL.UI.card('Pró-labore (mensal)', `
+            <p class="muted">Referência de mercado: ${CGL.Utils.formatBRL(ref)}/mês · pago a cada 4 semanas</p>
+            <table class="data-table">
+              <thead><tr><th>Administrador</th><th>Valor/mês</th><th>Satisfação</th><th></th></tr></thead>
+              <tbody>
+                ${(e.administradores || []).map((a) => `
+                  <tr>
+                    <td>${CGL.Utils.escapeHtml(a.nome)} ${a.ehContratado ? '<em class="tag">contratado</em>' : '<em class="tag">sócio</em>'}</td>
+                    <td>
+                      <input type="number" class="input-inline" data-pl-id="${a.id}" min="0" step="100"
+                        value="${Math.round(a.proLaboreMensal || 0)}" style="width:7rem" />
+                    </td>
+                    <td>${Math.round(a.satisfacao || 0)}</td>
+                    <td><button type="button" class="btn btn-sm btn-secondary" data-save-pl="${a.id}">Salvar</button></td>
+                  </tr>
+                `).join('') || '<tr><td colspan="4" class="muted">Nenhum administrador.</td></tr>'}
+              </tbody>
+            </table>
+            <p class="muted" style="margin-top:0.5rem">Valores altos elevam custo operacional; muito baixos insatisfazem contratados.</p>
+          `)}
+          ${CGL.UI.card('Dividendos', `
             <p><strong>${CGL.Utils.escapeHtml(pol.nome)}</strong></p>
-            <p class="muted">Payout ${(pol.payout * 100).toFixed(0)}% · afeta satisfação dos sócios</p>
+            <p class="muted">Payout ${(pol.payout * 100).toFixed(0)}% · pro-rata à participação · exige lucro acumulado</p>
+            <div class="stat-gold">${CGL.Utils.formatBRL(fin.lucrosAcumulados || 0, { compact: true })}</div>
+            <p class="muted">Lucros acumulados</p>
             <label class="field">
-              <span>Alterar política</span>
+              <span>Política</span>
               <select id="sel-pol">
                 ${CGL.Data.dividendPolicies.map((p) => `
                   <option value="${p.id}" ${p.id === pol.id ? 'selected' : ''}>${CGL.Utils.escapeHtml(p.nome)}</option>
                 `).join('')}
               </select>
             </label>
-            <button type="button" class="btn btn-sm btn-secondary" id="btn-set-pol">Salvar política</button>
+            <div class="actions-row" style="margin-top:0.5rem">
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-set-pol">Salvar política</button>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-dist">Distribuir agora</button>
+            </div>
           `)}
-          ${CGL.UI.card('Lucros acumulados', `
-            <div class="stat-gold">${CGL.Utils.formatBRL(fin.lucrosAcumulados || 0, { compact: true })}</div>
-            <button type="button" class="btn btn-primary" id="btn-dist">Distribuir agora</button>
-            <p class="muted" style="margin-top:0.5rem">Pró-labore detalhado fica para Fase 4 (stub).</p>
+          ${CGL.UI.card('Aporte e restituição', `
+            <p class="muted">Aporte: PF → PJ (aumenta capital). Restituição: PJ → PF (quando permitido).</p>
+            <label class="field"><span>Valor (R$)</span>
+              <input type="number" id="inp-cap" min="500" step="500" value="5000" /></label>
+            <div class="actions-row">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-aporte">Aportar capital</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-rest">Restituir capital</button>
+            </div>
+            <p class="muted" style="margin-top:0.5rem">Capital social: ${CGL.Utils.formatBRL(e.capitalSocial)}</p>
+          `)}
+          ${CGL.UI.card('Reembolso de despesas', `
+            <p class="muted">Despesas pagas pessoalmente e reembolsadas pela empresa (teto por receita).</p>
+            <label class="field"><span>Valor (R$)</span>
+              <input type="number" id="inp-reemb" min="50" step="50" value="500" /></label>
+            <label class="field"><span>Descrição</span>
+              <input type="text" id="inp-reemb-desc" value="Despesas operacionais" /></label>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-reemb">Solicitar reembolso</button>
           `)}
         </div>
+
+        <section class="section-block">
+          <div class="row-between">
+            <h2>Empréstimos sócio ↔ empresa</h2>
+          </div>
+          <p class="muted">Mútuos com limites e juros (obrigatórios quando a PJ empresta ao sócio).</p>
+          <div class="actions-row">
+            <button type="button" class="btn btn-sm btn-primary" id="btn-mutuo-pf">Sócio → empresa</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-mutuo-pj">Empresa → sócio</button>
+          </div>
+          ${mutuos.length ? `
+            <table class="data-table" style="margin-top:1rem">
+              <thead><tr><th>Direção</th><th>Saldo</th><th>Parcela</th><th>Taxa a.a.</th><th>Status</th></tr></thead>
+              <tbody>
+                ${mutuos.map((m) => `
+                  <tr>
+                    <td>${m.direcao === 'socio_para_empresa' ? 'Sócio → PJ' : 'PJ → sócio'}</td>
+                    <td>${CGL.Utils.formatBRL(m.saldo)}</td>
+                    <td>${CGL.Utils.formatBRL(m.parcela)}</td>
+                    <td>${((m.taxaAnual || 0) * 100).toFixed(1)}%</td>
+                    <td>${m.status}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="muted" style="margin-top:0.75rem">Nenhum mútuo ativo.</p>'}
+        </section>
       `;
+
+      el.querySelectorAll('[data-save-pl]').forEach((btn) => {
+        btn.onclick = () => {
+          const id = btn.dataset.savePl;
+          const inp = el.querySelector(`[data-pl-id="${id}"]`);
+          try {
+            CGL.Finance.setProLabore(state, e.id, id, Number(inp?.value) || 0);
+            CGL.Game.save(false);
+            CGL.Events.notify('success', 'Pró-labore', 'Valor atualizado.');
+            this.render(document.getElementById('main-content'));
+          } catch (err) {
+            CGL.Events.notify('error', 'Falha', err.message);
+          }
+        };
+      });
       el.querySelector('#btn-set-pol').onclick = () => {
-        const id = el.querySelector('#sel-pol').value;
-        CGL.Finance.setDividendPolicy(state, e.id, id);
+        CGL.Finance.setDividendPolicy(state, e.id, el.querySelector('#sel-pol').value);
         CGL.Game.save(false);
         CGL.Events.notify('success', 'Política', 'Atualizada.');
         this.render(document.getElementById('main-content'));
@@ -495,6 +638,92 @@
           CGL.Events.notify('error', 'Falha', err.message);
         }
       };
+      el.querySelector('#btn-aporte').onclick = () => {
+        try {
+          const v = Number(el.querySelector('#inp-cap').value);
+          CGL.Finance.contributeCapital(state, e.id, v);
+          CGL.Game.save(false);
+          CGL.UI.refreshTopbar();
+          CGL.Events.notify('success', 'Aporte', CGL.Utils.formatBRL(v));
+          this.render(document.getElementById('main-content'));
+        } catch (err) {
+          CGL.Events.notify('error', 'Falha', err.message);
+        }
+      };
+      el.querySelector('#btn-rest').onclick = () => {
+        try {
+          const v = Number(el.querySelector('#inp-cap').value);
+          CGL.Finance.restituteCapital(state, e.id, v);
+          CGL.Game.save(false);
+          CGL.UI.refreshTopbar();
+          CGL.Events.notify('success', 'Restituição', CGL.Utils.formatBRL(v));
+          this.render(document.getElementById('main-content'));
+        } catch (err) {
+          CGL.Events.notify('error', 'Falha', err.message);
+        }
+      };
+      el.querySelector('#btn-reemb').onclick = () => {
+        try {
+          const v = Number(el.querySelector('#inp-reemb').value);
+          const d = el.querySelector('#inp-reemb-desc').value;
+          CGL.Finance.reimburseExpense(state, e.id, v, d);
+          CGL.Game.save(false);
+          CGL.UI.refreshTopbar();
+          CGL.Events.notify('success', 'Reembolso', CGL.Utils.formatBRL(v));
+          this.render(document.getElementById('main-content'));
+        } catch (err) {
+          CGL.Events.notify('error', 'Falha', err.message);
+        }
+      };
+      el.querySelector('#btn-mutuo-pf').onclick = () => this._modalMutuo(e.id, 'socio_para_empresa');
+      el.querySelector('#btn-mutuo-pj').onclick = () => this._modalMutuo(e.id, 'empresa_para_socio');
+    },
+
+    _modalMutuo(empresaId, direcao) {
+      const paraEmpresa = direcao === 'socio_para_empresa';
+      CGL.UI.modal({
+        title: paraEmpresa ? 'Empréstimo do sócio à empresa' : 'Empréstimo da empresa ao sócio',
+        body: `
+          <p class="muted">${paraEmpresa
+            ? 'Seu dinheiro pessoal (PF) entra no caixa da empresa (PJ).'
+            : 'Caixa PJ vai para sua conta PF — juros obrigatórios e limites de segurança.'}</p>
+          <div class="form-grid">
+            <label class="field"><span>Valor (R$)</span>
+              <input type="number" id="m-mut-val" min="1000" step="500" value="10000" /></label>
+            <label class="field"><span>Prazo (semanas)</span>
+              <input type="number" id="m-mut-prazo" min="4" max="208" value="${paraEmpresa ? 52 : 26}" /></label>
+            ${paraEmpresa ? `
+              <label class="field"><span>Taxa a.a. (opcional)</span>
+                <input type="number" id="m-mut-taxa" min="0" max="0.4" step="0.01" value="0.06" /></label>
+            ` : `
+              <label class="field"><span>Taxa a.a. (mín. 8%)</span>
+                <input type="number" id="m-mut-taxa" min="0.08" max="0.5" step="0.01" value="0.12" /></label>
+            `}
+          </div>
+        `,
+        confirmLabel: 'Contratar',
+        onConfirm: () => {
+          const state = CGL.Game.getState();
+          const valor = Number(document.getElementById('m-mut-val')?.value);
+          const prazoSem = Number(document.getElementById('m-mut-prazo')?.value);
+          const taxaAnual = Number(document.getElementById('m-mut-taxa')?.value);
+          try {
+            if (paraEmpresa) {
+              CGL.Finance.loanShareholderToCompany(state, empresaId, valor, { prazoSem, taxaAnual });
+            } else {
+              CGL.Finance.loanCompanyToShareholder(state, empresaId, valor, { prazoSem, taxaAnual });
+            }
+            CGL.Game.save(false);
+            CGL.UI.refreshTopbar();
+            CGL.Events.notify('success', 'Mútuo', 'Contrato registrado.');
+            this.render(document.getElementById('main-content'));
+            return true;
+          } catch (err) {
+            CGL.Events.notify('error', 'Falha', err.message);
+            return false;
+          }
+        }
+      });
     },
 
     /* ========== Pessoal ========== */
@@ -508,15 +737,16 @@
             <div class="detail-title">
               <button type="button" class="btn btn-ghost" id="btn-back">← Finanças</button>
               <div>
-                <h1>Finanças pessoais</h1>
-                <p class="muted">Contas PF totalmente separadas das empresas</p>
+                <h1>Conta pessoal (PF)</h1>
+                <p class="muted">Separada do caixa PJ — entradas só por canais formais (pró-labore, dividendos, etc.)</p>
               </div>
             </div>
             <button type="button" class="btn btn-sm btn-primary" id="btn-open-pf">Abrir conta</button>
           </header>
           <div class="dash-grid">
-            ${CGL.UI.card('Dinheiro disponível', `
+            ${CGL.UI.card('Saldo pessoal', `
               <div class="stat-gold">${CGL.Utils.formatBRL(state.player.dinheiro)}</div>
+              <p class="muted">Não é caixa das suas empresas</p>
             `)}
             ${pf.contas.map((c) => CGL.UI.card(c.bancoNome, `
               <ul class="kv-list">
@@ -635,7 +865,7 @@
         onConfirm: () => {
           try {
             const state = CGL.Game.getState();
-            const r = CGL.Finance.requestLoan(state, empresaId, {
+            const loanOpts = {
               bancoId: document.getElementById('m-bank').value,
               finalidadeId: document.getElementById('m-fin').value,
               valor: Number(document.getElementById('m-val').value),
@@ -644,12 +874,15 @@
                 tipoId: document.getElementById('m-gar').value,
                 valor: Number(document.getElementById('m-gar-v').value)
               }]
-            });
+            };
+            const r = CGL.Debt?.requestBankLoan
+              ? CGL.Debt.requestBankLoan(state, empresaId, loanOpts)
+              : CGL.Finance.requestLoan(state, empresaId, loanOpts);
             CGL.Game.save(false);
             CGL.UI.refreshTopbar();
             if (r.ok) CGL.Events.notify('success', 'Aprovado', r.motivo);
             else CGL.Events.notify('alert', 'Recusado', r.motivo);
-            this.empresaTab = 'credito';
+            this.empresaTab = 'endividamento';
             this.render(document.getElementById('main-content'));
             return true;
           } catch (err) {
@@ -717,19 +950,23 @@
               </select>
             </label>
           </div>
-          <p class="muted">Investidores decidem pela demanda conforme risco. IPO completo fica na Fase 5.</p>
+          <p class="muted">Apetite dos investidores (Fase 6) decide se a emissão encontra compradores.</p>
         `,
         confirmLabel: 'Emitir',
         onConfirm: () => {
           try {
-            const d = CGL.Finance.issueDebentures(CGL.Game.getState(), empresaId, {
+            const debOpts = {
               valor: Number(document.getElementById('m-val').value),
               prazoSem: Number(document.getElementById('m-prazo').value),
               remuneracaoAnual: Number(document.getElementById('m-rem').value),
               tipo: document.getElementById('m-tipo').value
-            });
+            };
+            const d = CGL.Debt?.issueDebenture
+              ? CGL.Debt.issueDebenture(CGL.Game.getState(), empresaId, debOpts)
+              : CGL.Finance.issueDebentures(CGL.Game.getState(), empresaId, debOpts);
             CGL.Game.save(false);
             CGL.Events.notify('success', 'Debêntures', `Captado ${CGL.Utils.formatBRL(d.captado)}`);
+            this.empresaTab = 'endividamento';
             this.render(document.getElementById('main-content'));
             return true;
           } catch (err) {
@@ -814,21 +1051,35 @@
     /** Bloco para ficha da empresa (CompanyUI) */
     detailFinanceTabsHtml(empresa, state) {
       CGL.Finance.ensureCompanyFinance(empresa, state);
+      CGL.Finance._ensureAdminsProLabore(empresa);
       const ind = empresa.finance.indicadores || {};
       const fal = CGL.Data.getBankruptcyStage(empresa.finance.falencia?.estagio || 0);
+      const plTotal = CGL.Finance.totalProLaboreMensal(empresa);
+      const mutuos = (empresa.finance.emprestimosSocio || []).filter((m) => m.status === 'ativo').length;
       return `
         <section class="section-block finance-embed">
           <div class="row-between">
-            <h2>Finanças</h2>
-            <button type="button" class="btn btn-sm btn-primary" data-goto-fin="${empresa.id}">Abrir módulo</button>
+            <h2>Finanças (PJ)</h2>
+            <div class="actions-row">
+              <button type="button" class="btn btn-sm btn-secondary" data-goto-fin-tab="${empresa.id}|remuneracao">Remuneração</button>
+              <button type="button" class="btn btn-sm btn-primary" data-goto-fin="${empresa.id}">Abrir módulo</button>
+            </div>
           </div>
           <div class="dash-grid">
             ${CGL.UI.card('Caixa / liquidez', `
               <ul class="kv-list">
-                <li><span>Caixa</span><span>${CGL.Utils.formatBRL(empresa.caixa)}</span></li>
+                <li><span>Caixa PJ</span><span>${CGL.Utils.formatBRL(empresa.caixa)}</span></li>
                 <li><span>Liquidez</span><span>${(ind.liquidez ?? 0).toFixed(2)}</span></li>
                 <li><span>Risco</span><span>${Math.round(ind.riscoFinanceiro || 0)}</span></li>
                 <li><span>Estágio</span><span>${CGL.Utils.escapeHtml(fal.nome)}</span></li>
+              </ul>
+            `)}
+            ${CGL.UI.card('Remuneração', `
+              <ul class="kv-list">
+                <li><span>Pró-labore/mês</span><span>${CGL.Utils.formatBRL(plTotal)}</span></li>
+                <li><span>Política dividendos</span><span>${CGL.Utils.escapeHtml(CGL.Data.getDividendPolicyById(empresa.finance.politicaDividendos).nome)}</span></li>
+                <li><span>Lucros acum.</span><span>${CGL.Utils.formatBRL(empresa.finance.lucrosAcumulados || 0, { compact: true })}</span></li>
+                <li><span>Mútuos ativos</span><span>${mutuos}</span></li>
               </ul>
             `)}
             ${CGL.UI.card('DRE (última semana)', (() => {
@@ -850,6 +1101,15 @@
           this.view = 'empresa';
           this.selectedId = btn.dataset.gotoFin;
           this.empresaTab = 'resumo';
+          CGL.UI.navigate('financas');
+        };
+      });
+      main.querySelectorAll('[data-goto-fin-tab]').forEach((btn) => {
+        btn.onclick = () => {
+          const [id, tab] = (btn.dataset.gotoFinTab || '').split('|');
+          this.view = 'empresa';
+          this.selectedId = id;
+          this.empresaTab = tab || 'remuneracao';
           CGL.UI.navigate('financas');
         };
       });
