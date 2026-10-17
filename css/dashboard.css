@@ -1,0 +1,312 @@
+/**
+ * CONGLOMERADO — Dashboard e telas de conteúdo
+ */
+
+.screen-header {
+  margin-bottom: 1.25rem;
+}
+
+.screen-header h1 {
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.dash-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background:
+    linear-gradient(120deg, rgba(212, 168, 75, 0.12), transparent 55%),
+    var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+
+.dash-hero h2 { margin: 0 0 0.15rem; font-size: 1.2rem; }
+.dash-hero > div:nth-child(2) { flex: 1; min-width: 160px; }
+.dash-hero .btn { margin-left: auto; }
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.family-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.family-card.dead {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+.attr-readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.9rem;
+}
+
+.attr-readout div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.attr-readout strong { color: var(--gold); }
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.timeline li {
+  padding: 0.5rem 0 0.5rem 0.85rem;
+  border-left: 2px solid var(--border);
+  margin-left: 0.25rem;
+}
+
+.timeline.big li {
+  padding: 0.85rem 0 0.85rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.timeline .tl-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+
+.stub-screen .card {
+  max-width: 480px;
+}
+
+.dashboard-screen .card-body .css-chart {
+  opacity: 0.9;
+}
+
+/* ========== Empresas / Holdings (Fase 2) ========== */
+
+.row-between {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.section-block {
+  margin-top: 1.75rem;
+}
+
+.section-block h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.actions-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.detail-title h1 { margin: 0; }
+
+.card-holding {
+  border-color: rgba(212, 168, 75, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(212, 168, 75, 0.15);
+}
+
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+
+.tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-style: normal;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--green-dim);
+  color: #eafff3;
+  margin-left: 0.35rem;
+}
+
+.company-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #0b1210;
+  background: var(--logo-color, var(--green));
+  vertical-align: middle;
+  margin-right: 0.35rem;
+  flex-shrink: 0;
+}
+
+.company-logo.logo-circle { border-radius: 50%; }
+.company-logo.logo-rounded { border-radius: 8px; }
+.company-logo.logo-diamond {
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+.company-logo.logo-diamond > * ,
+.logo-diamond {
+  /* iniciais ficam legíveis */
+}
+.company-logo.logo-diamond {
+  font-size: 0.65em;
+}
+.company-logo.logo-sm { width: 28px; height: 28px; font-size: 0.65rem; }
+.company-logo.logo-md { width: 40px; height: 40px; font-size: 0.85rem; }
+.company-logo.logo-lg { width: 56px; height: 56px; font-size: 1.1rem; }
+
+.company-logo.logo-diamond {
+  transform: none;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  font-size: inherit;
+}
+
+.empresas-screen .card-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1rem;
+}
+
+.wizard { display: flex; flex-direction: column; gap: 1rem; }
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.wiz-step {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: var(--bg-deep);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.wiz-step.active {
+  border-color: var(--green);
+  color: var(--text);
+  background: rgba(61, 214, 140, 0.1);
+}
+.wiz-step.done { color: var(--green); }
+
+.nature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.65rem;
+  max-height: 360px;
+  overflow: auto;
+}
+.nature-card {
+  display: block;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-deep);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.nature-card input { margin-right: 0.35rem; }
+.nature-card.selected {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green);
+}
+.nature-card p { margin: 0.25rem 0; color: var(--text-muted); }
+.nature-card strong { display: block; margin-bottom: 0.25rem; }
+
+.review-block {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+.review-block .kv-list {
+  text-align: left;
+  max-width: 360px;
+  margin: 1rem auto 0;
+}
+
+.modal .wizard select[size] {
+  width: 100%;
+  background: var(--bg-deep);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 0.35rem;
+}
+
+/* Fase 3 — Finanças */
+.finance-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.finance-tab {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.finance-tab:hover { color: var(--text); border-color: var(--text-muted); }
+.finance-tab.active {
+  color: var(--text);
+  border-color: var(--green);
+  background: rgba(61, 214, 140, 0.1);
+}
+
+.dre-list li { padding: 0.35rem 0; }
+.dre-list .dre-result {
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.finance-embed { margin-top: 0.5rem; }
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .nature-grid { grid-template-columns: 1fr; }
+  .detail-title { align-items: flex-start; }
+  .finance-tabs { gap: 0.25rem; }
+  .finance-tab { font-size: 0.78rem; padding: 0.35rem 0.55rem; }
+}
