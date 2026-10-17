@@ -8,11 +8,18 @@
     { id: 'dashboard', label: 'Dashboard', icon: '▣' },
     { id: 'empresas', label: 'Empresas', icon: '🏢' },
     { id: 'financas', label: 'Finanças', icon: '💰' },
+    { id: 'mercado', label: 'Mercado', icon: '📈' },
+    { id: 'investimentos', label: 'Investimentos', icon: '📉' },
     { id: 'vida', label: 'Vida Pessoal', icon: '👤' },
     { id: 'economia', label: 'Economia', icon: '📊', stub: true },
-    { id: 'funcionarios', label: 'Funcionários', icon: '👥', stub: true },
+    { id: 'funcionarios', label: 'Funcionários', icon: '👥' },
+    { id: 'marketing', label: 'Marketing', icon: '📣' },
+    { id: 'pd', label: 'P&D', icon: '🔬' },
+    { id: 'logistica', label: 'Logística', icon: '🚚' },
+    { id: 'mundo', label: 'Mundo', icon: '🌐' },
+    { id: 'conglomerado', label: 'Conglomerado', icon: '🏛' },
+    { id: 'dificuldade', label: 'Dificuldade', icon: '🎚' },
     { id: 'diretoria', label: 'Diretoria', icon: '⚖', stub: true },
-    { id: 'mercado', label: 'Mercado', icon: '📈', stub: true },
     { id: 'patrimonio', label: 'Patrimônio', icon: '⚜', stub: true },
     { id: 'familia', label: 'Família', icon: '⌂' },
     { id: 'historico', label: 'Histórico', icon: '📜' },
@@ -50,17 +57,29 @@
         </div>
       `;
       document.getElementById('btn-new').onclick = () => {
+        const start = () => {
+          // Picker leve de dificuldade antes do wizard do CEO
+          if (CGL.DifficultyUI?.renderPreGamePicker) {
+            const app = document.getElementById('app');
+            app.innerHTML = `<div class="boot-screen"><div class="boot-bg"></div><div class="boot-content" id="pregame-root"></div></div>`;
+            CGL.DifficultyUI.renderPreGamePicker(document.getElementById('pregame-root'), (opts) => {
+              CGL.Game.startNewGame(opts);
+            });
+          } else {
+            CGL.Game.startNewGame();
+          }
+        };
         if (CGL.Save.hasSave()) {
           this.confirm(
             'Novo jogo',
             'Isso substituirá o save atual. Continuar?',
             () => {
               CGL.Save.clear();
-              CGL.Game.startNewGame();
+              start();
             }
           );
         } else {
-          CGL.Game.startNewGame();
+          start();
         }
       };
       document.getElementById('btn-continue').onclick = () => CGL.Game.continueGame();
@@ -219,6 +238,42 @@
         // Mantém selectedId se veio da ficha da empresa
         if (!CGL.FinanceUI.selectedId) CGL.FinanceUI.view = 'hub';
       }
+      if (screenId === 'mercado' && this.currentScreen !== 'mercado' && CGL.MarketUI) {
+        CGL.MarketUI.view = 'mercado';
+        CGL.MarketUI.selectedId = null;
+      }
+      if (screenId === 'investimentos' && CGL.MarketUI) {
+        CGL.MarketUI.view = 'investimentos';
+      }
+      if (screenId === 'funcionarios' && this.currentScreen !== 'funcionarios' && CGL.HrUI) {
+        CGL.HrUI.view = 'hub';
+        CGL.HrUI.selectedId = null;
+        CGL.HrUI.empId = null;
+      }
+      if (screenId === 'marketing' && this.currentScreen !== 'marketing' && CGL.MarketingUI) {
+        CGL.MarketingUI.view = 'hub';
+        CGL.MarketingUI.selectedId = null;
+      }
+      if (screenId === 'pd' && this.currentScreen !== 'pd' && CGL.RdUI) {
+        CGL.RdUI.view = 'hub';
+        CGL.RdUI.selectedId = null;
+      }
+      if (screenId === 'logistica' && this.currentScreen !== 'logistica' && CGL.LogisticsUI) {
+        CGL.LogisticsUI.view = 'hub';
+        CGL.LogisticsUI.selectedId = null;
+      }
+      if (screenId === 'mundo' && this.currentScreen !== 'mundo' && CGL.IntlUI) {
+        CGL.IntlUI.view = 'hub';
+        CGL.IntlUI.selectedId = null;
+        CGL.IntlUI.wizard = null;
+      }
+      if (screenId === 'conglomerado' && this.currentScreen !== 'conglomerado' && CGL.HoldingUI) {
+        CGL.HoldingUI.view = 'hub';
+        CGL.HoldingUI.selectedDealId = null;
+      }
+      if (screenId === 'dificuldade' && this.currentScreen !== 'dificuldade' && CGL.DifficultyUI) {
+        CGL.DifficultyUI.view = 'hub';
+      }
       this.currentScreen = screenId;
       document.querySelectorAll('.nav-item').forEach((el) => {
         el.classList.toggle('active', el.dataset.screen === screenId);
@@ -237,7 +292,35 @@
       } else if (id === 'financas') {
         if (CGL.FinanceUI) CGL.FinanceUI.render(main);
         else this.renderStub(main, SCREENS.find((s) => s.id === id));
-      } else if (id === 'vida') this.renderVida(main);
+      } else if (id === 'mercado') {
+        if (CGL.MarketUI) CGL.MarketUI.renderMercado(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'investimentos') {
+        if (CGL.MarketUI) CGL.MarketUI.renderInvestimentos(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'funcionarios') {
+        if (CGL.HrUI) CGL.HrUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'marketing') {
+        if (CGL.MarketingUI) CGL.MarketingUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'pd') {
+        if (CGL.RdUI) CGL.RdUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'logistica') {
+        if (CGL.LogisticsUI) CGL.LogisticsUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'mundo') {
+        if (CGL.IntlUI) CGL.IntlUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'conglomerado') {
+        if (CGL.HoldingUI) CGL.HoldingUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      } else if (id === 'dificuldade') {
+        if (CGL.DifficultyUI) CGL.DifficultyUI.render(main);
+        else this.renderStub(main, SCREENS.find((s) => s.id === id));
+      }
+      else if (id === 'vida') this.renderVida(main);
       else if (id === 'familia') this.renderFamilia(main);
       else if (id === 'historico') this.renderHistorico(main);
       else if (id === 'config') this.renderConfig(main);
@@ -350,12 +433,7 @@
         </div>
       `;
       const close = () => wrap.remove();
-      wrap.addEventListener('click', (e) => {
-        if (e.target === wrap) {
-          if (onCancel) onCancel();
-          close();
-        }
-      });
+      // Não fecha ao clicar no backdrop — só via Cancelar/OK/Esc.
       wrap.querySelector('[data-act="ok"]').onclick = () => {
         if (onConfirm) {
           const ok = onConfirm();
@@ -449,6 +527,9 @@
             ${CGL.FinanceUI
               ? CGL.FinanceUI.dashboardCardsHtml(s)
               : this.card('Finanças', '<p class="muted">Módulo financeiro indisponível.</p>')}
+            ${CGL.MarketUI
+              ? CGL.MarketUI.dashboardCardsHtml(s)
+              : this.card('Mercado', '<p class="muted">Mercado de capitais indisponível.</p>')}
             ${this.card('Família', `
               <p>${(p.familia || []).filter((m) => m.vivo).length} familiares ativos</p>
               <button type="button" class="btn btn-sm btn-secondary" data-go="familia">Ver família</button>

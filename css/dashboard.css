@@ -144,6 +144,32 @@
 
 .pos { color: var(--green); }
 .neg { color: var(--red); }
+.text-danger { color: var(--red); }
+
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline-list li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+}
+
+.finance-screen .kv-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  max-width: 28rem;
+}
+.finance-screen .kv-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 .tag {
   display: inline-block;
@@ -304,9 +330,549 @@
   align-items: center;
 }
 
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.row-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Fase 5 — Mercado */
+.market-screen .timeline .pos { color: var(--green); }
+.market-screen .timeline .neg { color: var(--red); }
+
+/* Fase 7 — RH */
+.hr-screen .row-talent td:first-child { color: var(--gold); }
+.hr-screen .row-warn { background: rgba(240, 113, 120, 0.06); }
+.btn-danger {
+  background: rgba(240, 113, 120, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.btn-danger:hover { background: rgba(240, 113, 120, 0.28); }
+
+/* Fase 8 — Marketing / Marca */
+.mkt-screen .mkt-meter { margin-bottom: 0.55rem; }
+.mkt-screen .mkt-bar {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.2rem;
+}
+.mkt-screen .mkt-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+  border-radius: 3px;
+}
+.mkt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.mkt-chip {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.mkt-tab-body { margin-top: 1rem; }
+.text-danger { color: var(--red); }
+
+/* Fase 9 — P&D / Inovação */
+.rd-screen .rd-tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.rd-tech {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+.rd-tech.done { border-color: var(--green); background: rgba(61, 214, 140, 0.08); }
+.rd-tech.open { border-color: var(--gold); }
+.rd-tech.locked { opacity: 0.55; }
+.rd-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  width: 80px;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+.rd-screen .meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+
+/* Fase 10 — Logística */
+.logistics-screen .log-kpi-grid {
+  margin-bottom: 1rem;
+}
+.logistics-screen .log-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+.logistics-screen .log-stage {
+  flex: 1 1 100px;
+  min-width: 100px;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  text-align: center;
+}
+.logistics-screen .log-stage.bottleneck {
+  border-color: var(--red);
+  background: rgba(240, 113, 120, 0.08);
+}
+.logistics-screen .log-stage-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+.logistics-screen .log-chain-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 0 0.15rem;
+}
+.logistics-screen .log-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.logistics-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0.25rem 0;
+}
+.logistics-screen .meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+.logistics-screen .row-active td {
+  background: rgba(61, 214, 140, 0.06);
+}
+
+/* Fase 11 — Internacional / Mundo */
+.intl-screen .intl-fx-strip {
+  margin: 0.5rem 0 1rem;
+}
+.intl-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+.intl-country-card,
+.intl-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.intl-country-card:hover,
+.intl-mode-card:hover,
+.intl-country-card.selected,
+.intl-mode-card.selected {
+  border-color: var(--gold);
+  background: rgba(212, 168, 75, 0.08);
+}
+.intl-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+.intl-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.intl-stat {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.intl-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0.35rem 0;
+}
+.intl-screen .meter-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+.intl-screen .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.intl-screen select {
+  background: var(--bg-elevated);
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.5rem;
+}
+
+/* Fase 12 — Holding / Conglomerado */
+.holding-screen .holding-tabs {
+  margin: 0.75rem 0 1rem;
+}
+.holding-screen .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.holding-screen .inline-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.holding-screen select {
+  background: var(--bg-elevated);
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.5rem;
+}
+.holding-screen .meter {
+  height: 6px;
+  background: rgba(139, 155, 176, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0.35rem 0;
+}
+.holding-screen .meter-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--green));
+}
+.ownership-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: calc(var(--depth, 0) * 1.25rem);
+  border-left: 2px solid rgba(212, 168, 75, 0.25);
+  padding-left: 0.75rem;
+}
+.tree-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  padding: 0.65rem 0.85rem;
+  max-width: 420px;
+}
+.tree-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.tree-badge {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  border: 1px solid rgba(212, 168, 75, 0.4);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+.tree-metrics {
+  margin: 0;
+}
+.tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.tree-tipo-holding > .tree-card {
+  border-color: rgba(212, 168, 75, 0.55);
+}
+.tree-tipo-filial > .tree-card,
+.tree-tipo-unidade > .tree-card {
+  opacity: 0.92;
+  max-width: 360px;
+}
+.corp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+.corp-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.holding-screen .row-active td {
+  background: rgba(61, 214, 140, 0.06);
+}
+
+/* ========== Fase 13 — Dificuldade / Sandbox / Conquistas / Cheats ========== */
+.difficulty-screen .diff-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.diff-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.diff-tab.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(212, 168, 75, 0.08);
+}
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+.diff-section {
+  margin-bottom: 1.5rem;
+}
+.diff-section h2 {
+  font-size: 1rem;
+  margin: 0 0 0.65rem;
+  color: var(--gold);
+}
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+.level-card {
+  text-align: left;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.level-card.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(212, 168, 75, 0.35);
+}
+.level-card p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+.preset-row, .cheat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.preset-row .btn.active,
+.btn-ghost.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.slider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.85rem;
+}
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+}
+.slider-row em {
+  color: var(--gold);
+  font-style: normal;
+  float: right;
+}
+.auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+.auto-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.65rem;
+  background: var(--bg-elevated);
+  font-size: 0.85rem;
+}
+.auto-row select {
+  max-width: 140px;
+}
+.sandbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+.check-row.big {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.achieve-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.55rem;
+}
+.achieve-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  background: var(--bg-elevated);
+}
+.achieve-card.locked {
+  opacity: 0.45;
+}
+.achieve-card.unlocked {
+  border-color: rgba(61, 214, 140, 0.45);
+}
+.achieve-card p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+.achieve-status {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.55rem;
+  color: var(--gold);
+}
+.badge-cheats, .badge-sandbox {
+  display: inline-block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+.badge-cheats {
+  color: #f07178;
+  border: 1px solid rgba(240, 113, 120, 0.5);
+}
+.badge-sandbox {
+  color: #7aa2f7;
+  border: 1px solid rgba(122, 162, 247, 0.45);
+}
+.cheat-warn {
+  border: 1px solid rgba(240, 113, 120, 0.4);
+  background: rgba(240, 113, 120, 0.06);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.diff-log, .diff-mult-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+.diff-log li, .diff-mult-list li {
+  margin-bottom: 0.25rem;
+}
+.tip-line {
+  margin-top: 1rem;
+  font-size: 0.82rem;
+}
+.pregame-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: left;
+}
+.pregame-diff label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+.pregame-diff select {
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-elevated, #1a2332);
+  border: 1px solid var(--border, #2a3548);
+  color: inherit;
+  border-radius: var(--radius, 6px);
+}
+.gold { color: var(--gold); }
+
 @media (max-width: 640px) {
   .nature-grid { grid-template-columns: 1fr; }
   .detail-title { align-items: flex-start; }
   .finance-tabs { gap: 0.25rem; }
   .finance-tab { font-size: 0.78rem; padding: 0.35rem 0.55rem; }
+  .level-grid { grid-template-columns: 1fr; }
 }
